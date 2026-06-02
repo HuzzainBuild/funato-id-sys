@@ -1,5 +1,5 @@
 // models/Student.ts
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface IStudent extends Document {
   surname: string;
@@ -7,7 +7,7 @@ export interface IStudent extends Document {
   matricNumber: string;
   department: string;
   college?: string;
-  sex: 'Male' | 'Female';
+  sex: "Male" | "Female";
   bloodGroup: string;
   genotype: string;
   passportUrl?: string;
@@ -24,30 +24,30 @@ const StudentSchema = new Schema<IStudent>(
   {
     surname: {
       type: String,
-      required: [true, 'Surname is required'],
+      required: [true, "Surname is required"],
       trim: true,
       uppercase: true,
-      maxlength: [100, 'Surname cannot exceed 100 characters'],
+      maxlength: [100, "Surname cannot exceed 100 characters"],
     },
     otherNames: {
       type: String,
-      required: [true, 'Other names are required'],
+      required: [true, "Other names are required"],
       trim: true,
       uppercase: true,
-      maxlength: [200, 'Other names cannot exceed 200 characters'],
+      maxlength: [200, "Other names cannot exceed 200 characters"],
     },
     matricNumber: {
       type: String,
-      required: [true, 'Matric number is required'],
+      required: [true, "Matric number is required"],
       unique: true,
       trim: true,
       uppercase: true,
-      maxlength: [30, 'Matric number cannot exceed 30 characters'],
+      maxlength: [30, "Matric number cannot exceed 30 characters"],
       index: true,
     },
     department: {
       type: String,
-      required: [true, 'Department is required'],
+      required: [true, "Department is required"],
       trim: true,
     },
     college: {
@@ -56,25 +56,25 @@ const StudentSchema = new Schema<IStudent>(
     },
     sex: {
       type: String,
-      enum: ['Male', 'Female'],
-      required: [true, 'Sex is required'],
+      enum: ["Male", "Female"],
+      required: [true, "Sex is required"],
     },
     bloodGroup: {
       type: String,
       trim: true,
-      default: 'N/A',
+      default: "N/A",
     },
     genotype: {
       type: String,
       trim: true,
-      default: 'N/A',
+      default: "N/A",
     },
     passportUrl: {
       type: String,
       trim: true,
     },
     passportData: {
-      type: String, // legacy base64 encoded image
+      type: String,
     },
     securityString: {
       type: String,
@@ -92,28 +92,32 @@ const StudentSchema = new Schema<IStudent>(
     },
     uploadRecordId: {
       type: Schema.Types.ObjectId,
-      ref: 'UploadRecord',
+      ref: "UploadRecord",
     },
   },
   {
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  }
+  },
 );
 
 // Indexes for efficient querying
 StudentSchema.index({ department: 1 });
-StudentSchema.index({ importYear: 1 });
-StudentSchema.index({ surname: 'text', otherNames: 'text', matricNumber: 'text' });
+StudentSchema.index({
+  surname: "text",
+  otherNames: "text",
+  matricNumber: "text",
+});
 StudentSchema.index({ department: 1, importYear: 1 });
 
 // Virtual for full name
-StudentSchema.virtual('fullName').get(function() {
+StudentSchema.virtual("fullName").get(function () {
   return `${this.surname} ${this.otherNames}`;
 });
 
 const Student: Model<IStudent> =
-  mongoose.models.Student || mongoose.model<IStudent>('Student', StudentSchema);
+  mongoose.models.Student ||
+  mongoose.model<IStudent>("Student", StudentSchema);
 
 export default Student;
