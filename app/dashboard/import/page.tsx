@@ -231,7 +231,7 @@ export default function ImportPage() {
           {/* Error */}
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3">
-              <span className="text-red-500 text-xl flex-shrink-0">
+              <span className="text-red-500 text-xl shrink-0">
                 ❌
               </span>
               <div>
@@ -474,7 +474,7 @@ export default function ImportPage() {
           </div>
 
           {/* Tips */}
-          <div className="bg-gradient-to-br from-green-700 to-green-900 rounded-2xl p-5 text-white">
+          <div className="bg-linear-to-br from-green-700 to-green-900 rounded-2xl p-5 text-white">
             <h3 className="font-extrabold mb-3">💡 Import Tips</h3>
             <ul className="space-y-2 text-sm text-white/80">
               <li>• First row must be column headers</li>
