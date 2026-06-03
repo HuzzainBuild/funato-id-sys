@@ -1,4 +1,4 @@
-import { v2 as cloudinary } from 'cloudinary';
+import { v2 as cloudinary } from "cloudinary";
 
 interface UploadPassportOptions {
   buffer: Buffer;
@@ -12,13 +12,18 @@ interface CloudinaryUploadResult {
   public_id: string;
 }
 
+const PASSPORT_IMAGE_WIDTH = 480;
+const PASSPORT_IMAGE_HEIGHT = 500;
+
 function assertCloudinaryConfig() {
   if (
     !process.env.CLOUDINARY_CLOUD_NAME ||
     !process.env.CLOUDINARY_API_KEY ||
     !process.env.CLOUDINARY_API_SECRET
   ) {
-    throw new Error('Cloudinary environment variables are not configured');
+    throw new Error(
+      "Cloudinary environment variables are not configured",
+    );
   }
 }
 
@@ -39,38 +44,62 @@ export async function uploadPassportToCloudinary({
   assertCloudinaryConfig();
   configureCloudinary();
 
-  const originalName = fileName?.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const publicId = [studentId, originalName].filter(Boolean).join('_') || undefined;
+  const originalName = fileName
+    ?.replace(/\.[^.]+$/, "")
+    .replace(/[^a-zA-Z0-9_-]/g, "_");
+  const publicId =
+    [studentId, originalName].filter(Boolean).join("_") || undefined;
 
-  const result = await new Promise<CloudinaryUploadResult>((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
+  const result = await new Promise<CloudinaryUploadResult>(
+    (resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: "funato/passports",
+          resource_type: "image",
+          public_id: publicId,
+          unique_filename: true,
+          overwrite: false,
+          format: mimeType === "image/png" ? "png" : undefined,
+        },
+        (error, uploadResult) => {
+          if (error || !uploadResult) {
+            reject(error ?? new Error("Cloudinary upload failed"));
+            return;
+          }
+
+          const secureUrl = uploadResult.secure_url;
+          const publicId = uploadResult.public_id;
+          if (
+            typeof secureUrl !== "string" ||
+            typeof publicId !== "string"
+          ) {
+            reject(
+              new Error(
+                "Cloudinary upload response is missing image URL",
+              ),
+            );
+            return;
+          }
+
+          resolve({ secure_url: secureUrl, public_id: publicId });
+        },
+      );
+
+      stream.end(buffer);
+    },
+  );
+
+  return cloudinary.url(result.public_id, {
+    secure: true,
+    transformation: [
       {
-        folder: 'funato/passports',
-        resource_type: 'image',
-        public_id: publicId,
-        unique_filename: true,
-        overwrite: false,
-        format: mimeType === 'image/png' ? 'png' : undefined,
+        width: PASSPORT_IMAGE_WIDTH,
+        height: PASSPORT_IMAGE_HEIGHT,
+        crop: "fill",
+        gravity: "face",
+        quality: "auto",
+        fetch_format: "auto",
       },
-      (error, uploadResult) => {
-        if (error || !uploadResult) {
-          reject(error ?? new Error('Cloudinary upload failed'));
-          return;
-        }
-
-        const secureUrl = uploadResult.secure_url;
-        const publicId = uploadResult.public_id;
-        if (typeof secureUrl !== 'string' || typeof publicId !== 'string') {
-          reject(new Error('Cloudinary upload response is missing image URL'));
-          return;
-        }
-
-        resolve({ secure_url: secureUrl, public_id: publicId });
-      },
-    );
-
-    stream.end(buffer);
+    ],
   });
-
-  return result.secure_url;
 }

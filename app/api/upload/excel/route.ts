@@ -77,34 +77,69 @@ export async function POST(req: NextRequest) {
     let duplicateCount = 0;
     const importErrors: { row: number; message: string }[] = [...parseResult.errors];
 
+    const matricNumbers = parseResult.students.map(student => student.matricNumber);
+    const existingStudents = await Student.find({
+      matricNumber: { $in: matricNumbers },
+    }).select('matricNumber').lean();
+    const existingMatricNumbers = new Set(
+      existingStudents.map(student => student.matricNumber),
+    );
+
+    const studentsToInsert = [];
     for (let i = 0; i < parseResult.students.length; i++) {
       const studentData = parseResult.students[i];
 
-      try {
-        // Check for duplicate in DB
-        const exists = await Student.findOne({ matricNumber: studentData.matricNumber });
-
-        if (exists) {
-          duplicateCount++;
-          importErrors.push({
-            row: i + 2,
-            message: `Duplicate matric number: ${studentData.matricNumber} (already in database)`,
-          });
-          continue;
-        }
-
-        await Student.create({
-          ...studentData,
-          uploadRecordId: uploadRecord._id,
+      if (existingMatricNumbers.has(studentData.matricNumber)) {
+        duplicateCount++;
+        importErrors.push({
+          row: i + 2,
+          message: `Duplicate matric number: ${studentData.matricNumber} (already in database)`,
         });
-        importedCount++;
+        continue;
+      }
+
+      studentsToInsert.push({
+        ...studentData,
+        uploadRecordId: uploadRecord._id,
+      });
+    }
+
+    if (studentsToInsert.length > 0) {
+      try {
+        const insertedStudents = await Student.insertMany(studentsToInsert, {
+          ordered: false,
+        });
+        importedCount = insertedStudents.length;
       } catch (err: unknown) {
-        const errMsg = (err as Error).message || 'Unknown error';
-        if ((err as { code?: number }).code === 11000) {
-          duplicateCount++;
-          importErrors.push({ row: i + 2, message: `Duplicate: ${studentData.matricNumber}` });
+        const insertError = err as {
+          insertedDocs?: unknown[];
+          writeErrors?: Array<{ index?: number; errmsg?: string }>;
+          result?: { insertedCount?: number };
+          message?: string;
+        };
+        importedCount =
+          insertError.insertedDocs?.length ??
+          insertError.result?.insertedCount ??
+          0;
+
+        if (insertError.writeErrors?.length) {
+          for (const writeError of insertError.writeErrors) {
+            const failedStudent =
+              typeof writeError.index === 'number'
+                ? studentsToInsert[writeError.index]
+                : undefined;
+            importErrors.push({
+              row: (writeError.index ?? 0) + 2,
+              message:
+                writeError.errmsg ||
+                `Failed to import ${failedStudent?.matricNumber || 'student'}`,
+            });
+          }
         } else {
-          importErrors.push({ row: i + 2, message: errMsg });
+          importErrors.push({
+            row: 0,
+            message: insertError.message || 'Bulk student insert failed',
+          });
         }
       }
     }

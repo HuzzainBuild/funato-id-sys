@@ -40,7 +40,7 @@ function CardsPageContent() {
     try {
       const params: Record<string, string | number> = {
         page,
-        limit: 12,
+        limit: 50,
       };
       if (search) params.search = search;
       if (department) params.department = department;
@@ -317,7 +317,7 @@ function CardsPageContent() {
         </div>
 
         {/* Right: ID Card Preview Panel */}
-        <div className="w-96 flex-shrink-0">
+        <div className="w-96 shrink-0">
           <div className="sticky top-8">
             <h2 className="text-lg font-extrabold text-gray-900 mb-4">
               Card Preview
@@ -347,7 +347,7 @@ function CardsPageContent() {
                 <div className="flex justify-center mb-4">
                   <IDCardCanvas
                     student={selectedStudent}
-                    scale={0.55}
+                    scale={0.4}
                   />
                 </div>
 
@@ -496,7 +496,7 @@ function StudentCardItem({
             type="checkbox"
             checked={selected}
             onChange={onSelect}
-            className="w-4 h-4 accent-green-600 mt-1 flex-shrink-0"
+            className="w-4 h-4 accent-green-600 mt-1 shrink-0"
             onClick={(e) => e.stopPropagation()}
           />
         </div>

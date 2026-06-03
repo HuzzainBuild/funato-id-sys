@@ -31,7 +31,10 @@ export function generateId(): string {
  * Format matric number consistently
  */
 export function formatMatricNumber(matric: string): string {
-  return matric.trim().toUpperCase();
+  return matric
+    .trim()
+    .toUpperCase()
+    .replace(/\b0(\d{4})\b/g, '$1');
 }
 
 /**

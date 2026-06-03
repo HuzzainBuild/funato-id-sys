@@ -14,9 +14,12 @@ import { resolveStudentCollege } from './cardTemplates';
 import { uploadPassportToCloudinary } from './cloudinary';
 import type { Student, ImportResult } from '../types';
 
+const PASSPORT_UPLOAD_CONCURRENCY = Number(process.env.PASSPORT_UPLOAD_CONCURRENCY || 5);
+
 export async function parseExcelFile(buffer: Buffer): Promise<ImportResult> {
   const errors: { row: number; message: string }[] = [];
   const students: Student[] = [];
+  const passportTasks: Array<() => Promise<void>> = [];
 
   try {
     const workbook = XLSX.read(buffer, { type: 'buffer' });
@@ -147,28 +150,32 @@ export async function parseExcelFile(buffer: Buffer): Promise<ImportResult> {
       };
 
       if (passportUrl) {
-        const passport = await fetchPassportDataUrl(passportUrl);
-        if (passport.success) {
-          try {
-            student.passportUrl = await uploadPassportToCloudinary({
-              buffer: passport.buffer,
-              mimeType: passport.mimeType,
-              fileName: `${matricNumber}.jpg`,
-              studentId: matricNumber,
-            });
-          } catch (error) {
-            errors.push({
-              row: rowNum,
-              message: `Passport upload failed: ${(error as Error).message}`,
-            });
+        passportTasks.push(async () => {
+          const passport = await fetchPassportDataUrl(passportUrl);
+          if (passport.success) {
+            try {
+              student.passportUrl = await uploadPassportToCloudinary({
+                buffer: passport.buffer,
+                mimeType: passport.mimeType,
+                fileName: `${matricNumber}.jpg`,
+                studentId: matricNumber,
+              });
+            } catch (error) {
+              errors.push({
+                row: rowNum,
+                message: `Passport upload failed: ${(error as Error).message}`,
+              });
+            }
+          } else {
+            errors.push({ row: rowNum, message: passport.error });
           }
-        } else {
-          errors.push({ row: rowNum, message: passport.error });
-        }
+        });
       }
 
       students.push(student);
     }
+
+    await runWithConcurrency(passportTasks, PASSPORT_UPLOAD_CONCURRENCY);
 
     return {
       success: true,
@@ -189,6 +196,23 @@ export async function parseExcelFile(buffer: Buffer): Promise<ImportResult> {
       students: [],
     };
   }
+}
+
+async function runWithConcurrency(
+  tasks: Array<() => Promise<void>>,
+  concurrency: number,
+) {
+  const workerCount = Math.max(1, Math.min(concurrency, tasks.length));
+  let nextTask = 0;
+
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (nextTask < tasks.length) {
+        const task = tasks[nextTask++];
+        await task();
+      }
+    }),
+  );
 }
 
 /**

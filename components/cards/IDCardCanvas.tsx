@@ -1,11 +1,4 @@
 "use client";
-/**
- * IDCardCanvas.tsx
- * Overlays student data onto the pre-designed FUNATO template image.
- * Template: selected from /public/assets/template_*.jpg (1017 × 638 px)
- *
- * All positions measured pixel-precisely from the actual template scan.
- */
 
 import { useEffect, useRef, useState } from "react";
 import type { Student } from "@/types";
@@ -13,7 +6,7 @@ import { getIDCardTemplateSrc } from "@/lib/cardTemplates";
 
 export const CARD_W = 1017;
 export const CARD_H = 638;
-const EXPORT_SCALE = 3;
+const EXPORT_SCALE = 2;
 
 // ─── Exact positions (px at native 1017×638) ──────────────────────
 
@@ -25,8 +18,8 @@ const P = {
   dept: { left: 60, top: 510 },
   blood: { left: 260, top: 560 },
   geno: { left: 540, top: 560 },
-  qr: { left: 430, top: 250, size: 170 },
-  photo: { left: 680, top: 250, w: 300, h: 323 },
+  qr: { left: 480, top: 250, size: 170 },
+  photo: { left: 690, top: 285, w: 290, h: 300 },
 };
 
 // Font sizes at native resolution
@@ -40,11 +33,11 @@ const F = {
 const VCOL = "#0d1a0d"; // value text colour
 const TEXT_HALO = "0 1px 1px rgba(255,255,255,0.72)";
 const TEXT_W = {
-  surname: 300,
-  otherName: 300,
+  surname: 900,
+  otherName: 900,
   matric: 260,
   sex: 180,
-  dept: 548,
+  dept: 900,
   blood: 140,
   geno: 130,
 };
@@ -54,12 +47,14 @@ interface Props {
   student: Student;
   scale?: number;
   onRendered?: (url: string) => void;
+  renderForExport?: boolean;
 }
 
 export default function IDCardCanvas({
   student,
   scale = 0.6,
   onRendered,
+  renderForExport = true,
 }: Props) {
   const [qrUrl, setQrUrl] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -86,7 +81,7 @@ export default function IDCardCanvas({
       });
       setQrUrl(url);
       setReady(true);
-      if (onRendered) {
+      if (onRendered && renderForExport) {
         try {
           const cardUrl = await renderIDCard(student);
           onRendered(cardUrl);
@@ -95,7 +90,7 @@ export default function IDCardCanvas({
         }
       }
     })();
-  }, [student, onRendered]);
+  }, [student, onRendered, renderForExport]);
 
   const dW = Math.round(CARD_W * scale);
   const dH = Math.round(CARD_H * scale);
@@ -126,8 +121,8 @@ export default function IDCardCanvas({
     textShadow: TEXT_HALO,
     lineHeight: 1,
     whiteSpace: "nowrap",
-    overflow: "hidden",
     maxWidth: maxW ? maxW * s : undefined,
+    zIndex: 3,
   });
 
   const fitTextStyle = (
@@ -144,7 +139,6 @@ export default function IDCardCanvas({
     );
     return {
       ...valueStyle(fittedSize, maxW),
-      textOverflow: "clip",
     };
   };
 
@@ -157,7 +151,7 @@ export default function IDCardCanvas({
         height: dH,
         overflow: "hidden",
         borderRadius: 18 * s,
-        boxShadow: "0 6px 40px rgba(0,0,0,0.25)",
+        boxShadow: "0 6px 20px rgba(0,0,0,0.2)",
         flexShrink: 0,
         userSelect: "none",
       }}
@@ -227,7 +221,7 @@ export default function IDCardCanvas({
         style={style(
           P.dept.left,
           P.dept.top,
-          fitTextStyle(student.department, F.dept, TEXT_W.dept, 12),
+          fitTextStyle(student.department, F.dept, TEXT_W.dept, 9),
         )}
       >
         {student.department.toUpperCase()}
@@ -268,6 +262,7 @@ export default function IDCardCanvas({
             height: P.qr.size * s,
             objectFit: "contain",
             borderRadius: 4 * s,
+            zIndex: 2,
           }}
         />
       )}
@@ -284,8 +279,9 @@ export default function IDCardCanvas({
             width: P.photo.w * s,
             height: P.photo.h * s,
             objectFit: "cover",
-            objectPosition: "center top",
+            objectPosition: "center center",
             borderRadius: 14 * s,
+            zIndex: 1,
           }}
         />
       ) : (
@@ -393,20 +389,40 @@ export async function renderIDCard(
   ctx.fillStyle = VCOL;
 
   // 3 ─ Surname
-  ctx.font = scaledFont(F.surname, renderScale);
+  ctx.font = scaledFont(
+    fitCanvasFontSize(
+      ctx,
+      student.surname,
+      F.surname,
+      TEXT_W.surname,
+      10,
+      renderScale,
+    ),
+    renderScale,
+  );
   drawCleanText(
     ctx,
-    clip(ctx, student.surname, TEXT_W.surname * renderScale),
+    student.surname,
     P.surname.left * renderScale,
     P.surname.top * renderScale,
     renderScale,
   );
 
   // 4 ─ Other names
-  ctx.font = scaledFont(F.otherName, renderScale);
+  ctx.font = scaledFont(
+    fitCanvasFontSize(
+      ctx,
+      student.otherNames,
+      F.otherName,
+      TEXT_W.otherName,
+      9,
+      renderScale,
+    ),
+    renderScale,
+  );
   drawCleanText(
     ctx,
-    clip(ctx, student.otherNames, TEXT_W.otherName * renderScale),
+    student.otherNames,
     P.otherName.left * renderScale,
     P.otherName.top * renderScale,
     renderScale,
@@ -438,7 +454,8 @@ export async function renderIDCard(
       student.department.toUpperCase(),
       F.dept,
       TEXT_W.dept,
-      12,
+      9,
+      renderScale,
     ),
     renderScale,
   );
@@ -525,7 +542,7 @@ export async function renderIDCard(
         sx = (ph.width - sw) / 2;
       } else {
         sh = ph.width / par;
-        sy = (ph.height - sh) / 2;
+        sy = Math.max(0, (ph.height - sh) / 2);
       }
       ctx.drawImage(
         ph,
@@ -593,10 +610,12 @@ function fitCanvasFontSize(
   baseSize: number,
   maxW: number,
   minSize = 14,
+  renderScale = 1,
 ) {
   for (let size = baseSize; size >= minSize; size--) {
-    ctx.font = font(size);
-    if (ctx.measureText(text).width <= maxW) return size;
+    ctx.font = scaledFont(size, renderScale);
+    if (ctx.measureText(text).width <= maxW * renderScale)
+      return size;
   }
   return minSize;
 }

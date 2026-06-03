@@ -33,9 +33,6 @@ function PrintPageContent() {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [renderedCards, setRenderedCards] = useState<
-    Record<string, string>
-  >({});
   const [renderCount, setRenderCount] = useState(0);
   const [exportingPdf, setExportingPdf] = useState(false);
 
@@ -80,15 +77,7 @@ function PrintPageContent() {
     });
   }, [loadStudents]);
 
-  const handleCardRendered = useCallback(
-    (studentId: string, dataUrl: string) => {
-      setRenderedCards((prev) => ({ ...prev, [studentId]: dataUrl }));
-      setRenderCount((prev) => prev + 1);
-    },
-    [],
-  );
-
-  const allRendered = renderCount >= students.length;
+  const isRendering = exportingPdf || generating;
 
   const handlePrint = () => {
     window.print();
@@ -99,14 +88,16 @@ function PrintPageContent() {
   };
 
   const handleExportPDF = async () => {
-    if (!allRendered) {
-      toast.warning("Please wait", "Cards are still rendering...");
+    if (students.length === 0) {
+      toast.warning("No students selected", "Select students before exporting.");
       return;
     }
 
     setExportingPdf(true);
+    setRenderCount(0);
     try {
       const jsPDF = (await import("jspdf")).default;
+      const { renderIDCard } = await import("@/components/cards/IDCardCanvas");
 
       const pdf = new jsPDF({
         orientation: "landscape",
@@ -116,16 +107,15 @@ function PrintPageContent() {
 
       for (let i = 0; i < students.length; i++) {
         const student = students[i];
-        const cardDataUrl =
-          renderedCards[student._id || student.matricNumber];
-
-        if (!cardDataUrl) continue;
+        const cardDataUrl = await renderIDCard(student);
 
         if (i > 0) {
           pdf.addPage();
         }
 
         pdf.addImage(cardDataUrl, "PNG", 0, 0, ID_CARD_WIDTH_MM, ID_CARD_HEIGHT_MM);
+        setRenderCount(i + 1);
+        await new Promise((resolve) => setTimeout(resolve, 0));
       }
 
       pdf.save(
@@ -144,22 +134,24 @@ function PrintPageContent() {
   };
 
   const handleDownloadAll = async () => {
-    if (!allRendered) {
-      toast.warning("Please wait", "Cards are still rendering...");
+    if (students.length === 0) {
+      toast.warning("No students selected", "Select students before downloading.");
       return;
     }
 
     setGenerating(true);
+    setRenderCount(0);
     try {
-      for (const student of students) {
-        const cardDataUrl =
-          renderedCards[student._id || student.matricNumber];
-        if (!cardDataUrl) continue;
+      const { renderIDCard } = await import("@/components/cards/IDCardCanvas");
 
+      for (let i = 0; i < students.length; i++) {
+        const student = students[i];
+        const cardDataUrl = await renderIDCard(student);
         const a = document.createElement("a");
         a.href = cardDataUrl;
         a.download = `ID_${student.matricNumber}.png`;
         a.click();
+        setRenderCount(i + 1);
         await new Promise((r) => setTimeout(r, 200));
       }
       toast.success("All cards downloaded!");
@@ -195,7 +187,7 @@ function PrintPageContent() {
             <p className="text-sm text-gray-500">
               {students.length} cards · {pages} page
               {pages !== 1 ? "s" : ""}
-              {allRendered ? (
+              {!isRendering ? (
                 <span className="ml-2 text-green-600 font-semibold">
                   ✓ All cards ready
                 </span>
@@ -210,7 +202,7 @@ function PrintPageContent() {
           <div className="flex items-center gap-3">
             <button
               onClick={handleDownloadAll}
-              disabled={!allRendered || generating}
+              disabled={students.length === 0 || generating || exportingPdf}
               className="px-4 py-2 text-sm font-bold rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
             >
               {generating
@@ -220,7 +212,7 @@ function PrintPageContent() {
 
             <button
               onClick={handleExportPDF}
-              disabled={!allRendered || exportingPdf}
+              disabled={students.length === 0 || exportingPdf || generating}
               className="px-4 py-2 text-sm font-bold rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
               {exportingPdf
@@ -242,7 +234,7 @@ function PrintPageContent() {
         </div>
 
         {/* Render Progress */}
-        {!allRendered && students.length > 0 && (
+        {isRendering && students.length > 0 && (
           <div className="px-8 pb-3">
             <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
               <div
@@ -320,12 +312,7 @@ function PrintPageContent() {
                   <IDCardCanvas
                     student={student}
                     scale={ID_CARD_PRINT_SCALE}
-                    onRendered={(dataUrl) =>
-                      handleCardRendered(
-                        student._id || student.matricNumber,
-                        dataUrl,
-                      )
-                    }
+                    renderForExport={false}
                   />
                 </div>
               </div>
@@ -340,17 +327,15 @@ function PrintPageContent() {
           #print-area, #print-area * { visibility: visible; }
           html, body {
             width: ${ID_CARD_WIDTH_MM}mm;
-            height: ${ID_CARD_HEIGHT_MM}mm;
+            min-height: ${ID_CARD_HEIGHT_MM}mm;
             margin: 0 !important;
             padding: 0 !important;
             background: #fff !important;
           }
           #print-area {
-            position: fixed;
-            top: 0;
-            left: 0;
             width: ${ID_CARD_WIDTH_MM}mm;
             min-height: 0 !important;
+            background: #fff !important;
           }
           .no-print { display: none !important; }
           .print-page {
@@ -361,10 +346,15 @@ function PrintPageContent() {
             padding: 0 !important;
             box-shadow: none !important;
             page-break-after: always;
+            break-after: page;
             page-break-inside: avoid;
+            break-inside: avoid;
             overflow: hidden !important;
           }
-          .print-page:last-child { page-break-after: auto; }
+          .print-page:last-child {
+            page-break-after: auto;
+            break-after: auto;
+          }
           .print-card-frame {
             width: ${ID_CARD_WIDTH_MM}mm;
             height: ${ID_CARD_HEIGHT_MM}mm;

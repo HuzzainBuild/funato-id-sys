@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import Student from '@/models/Student';
 import { isAuthenticated } from '@/lib/auth';
+import { formatMatricNumber } from '@/lib/utils';
 
 export async function GET(req: NextRequest) {
   try {
@@ -74,9 +75,12 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     delete body.passportData;
+    if (body.matricNumber) {
+      body.matricNumber = formatMatricNumber(body.matricNumber);
+    }
 
     // Check for duplicate matric number
-    const existing = await Student.findOne({ matricNumber: body.matricNumber?.toUpperCase() });
+    const existing = await Student.findOne({ matricNumber: body.matricNumber });
     if (existing) {
       return NextResponse.json(
         { success: false, message: `Student with matric number ${body.matricNumber} already exists` },
