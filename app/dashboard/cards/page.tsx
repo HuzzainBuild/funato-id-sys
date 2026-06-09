@@ -81,7 +81,11 @@ function CardsPageContent() {
   };
 
   const handlePrintAll = () => {
-    router.push("/dashboard/print?all=1");
+    const params = new URLSearchParams({ all: "1" });
+    if (search) params.set("search", search);
+    if (department) params.set("department", department);
+    if (year) params.set("year", year);
+    router.push(`/dashboard/print?${params.toString()}`);
   };
 
   const handlePrintSingle = (student: Student) => {

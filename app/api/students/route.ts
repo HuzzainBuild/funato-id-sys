@@ -4,6 +4,11 @@ import { connectDB } from '@/lib/db';
 import Student from '@/models/Student';
 import { isAuthenticated } from '@/lib/auth';
 import { formatMatricNumber } from '@/lib/utils';
+import {
+  canonicalizeDepartment,
+  getDepartmentSearchValues,
+  resolveStudentCollege,
+} from '@/lib/cardTemplates';
 
 export async function GET(req: NextRequest) {
   try {
@@ -33,7 +38,11 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    if (department) query.department = { $regex: department, $options: 'i' };
+    if (department) {
+      query.department = {
+        $in: getDepartmentSearchValues(department).map((value) => new RegExp(`^${escapeRegex(value)}$`, 'i')),
+      };
+    }
     if (year) query.importYear = parseInt(year);
     if (sex) query.sex = sex;
 
@@ -78,6 +87,10 @@ export async function POST(req: NextRequest) {
     if (body.matricNumber) {
       body.matricNumber = formatMatricNumber(body.matricNumber);
     }
+    if (body.department) {
+      body.department = canonicalizeDepartment(body.department);
+      body.college = resolveStudentCollege(body.college, body.department);
+    }
 
     // Check for duplicate matric number
     const existing = await Student.findOne({ matricNumber: body.matricNumber });
@@ -105,4 +118,8 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
   }
+}
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

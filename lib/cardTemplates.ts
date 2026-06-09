@@ -152,6 +152,77 @@ function matchesNormalized(value: string, candidate: string): boolean {
   return normalizedValue === normalizedCandidate;
 }
 
+const DEPARTMENT_ALIASES: Record<string, string[]> = {
+  'Animal Science': ['Animal Production'],
+  'Fisheries & Aquaculture Management': [
+    'Fisheries and Aquaculture Management',
+    'Fisheries and Aquaculture',
+  ],
+  'Forestry & Wildlife Management': ['Forestry and Wildlife Management', 'Forestry and Wildlife'],
+  'Environmental Management & Toxicology': ['Environmental Management and Toxicology'],
+  'Agricultural Economics': [],
+  'Agribusiness': [],
+  'Agricultural Extension & Rural Development': [
+    'Agricultural Extension and Rural Development',
+    'Agricultural Extension',
+  ],
+  'Human Nutrition & Dietetics': ['Human Nutrition and Dietetics'],
+  'Hospitality & Tourism Management': ['Hospitality and Tourism Management'],
+  'Electrical & Electronics Engineering': [
+    'Electrical and Electronics Engineering',
+    'Electrical Engineering',
+  ],
+  'Mechanical Engineering': [],
+  'Civil Engineering': [],
+  'Agricultural and Bio-systems Engineering': [
+    'Agricultural and Biosystems Engineering',
+    'Agricultural Engineering',
+  ],
+  'Biomedical Engineering': [],
+  'Mechatronics Engineering': [],
+  'Food Science and Technology': [],
+  Chemistry: [],
+  Microbiology: [],
+  Biology: [],
+  'Physics with Electronics': ['Physics'],
+  Statistics: [],
+  Mathematics: [],
+  Biochemistry: [],
+  'Computer Science': [],
+  'Software Engineering': [],
+  'Cyber Security': ['Cybersecurity'],
+  'Soil Science': [],
+  'Crop Science': [],
+  'Horticulture & Landscape Management': ['Horticulture and Landscape Management'],
+  'Plant & Environmental Biology': ['Plant and Environmental Biology'],
+  Architecture: [],
+  'Surveying & Geoinformatics': ['Surveying and Geoinformatics'],
+  'Industrial Design': [],
+  'Urban & Regional Planning': ['Urban and Regional Planning'],
+};
+
+export function canonicalizeDepartment(department?: string): string {
+  const cleaned = (department || '').trim();
+  if (!cleaned) return '';
+
+  for (const [canonical, aliases] of Object.entries(DEPARTMENT_ALIASES)) {
+    if (
+      matchesNormalized(cleaned, canonical) ||
+      aliases.some((alias) => matchesNormalized(cleaned, alias))
+    ) {
+      return canonical;
+    }
+  }
+
+  return cleaned;
+}
+
+export function getDepartmentSearchValues(department: string): string[] {
+  const canonical = canonicalizeDepartment(department);
+  const aliases = DEPARTMENT_ALIASES[canonical] || [];
+  return Array.from(new Set([canonical, ...aliases].filter(Boolean)));
+}
+
 export function resolveCollegeTemplate(
   college?: string,
   department?: string,
@@ -165,10 +236,12 @@ export function resolveCollegeTemplate(
     if (collegeMatch) return collegeMatch;
   }
 
-  if (department) {
+  const canonicalDepartment = canonicalizeDepartment(department);
+
+  if (canonicalDepartment) {
     const departmentMatch = Object.values(COLLEGE_TEMPLATES).find((template) =>
       template.departments.some((candidate) =>
-        matchesNormalized(department, candidate),
+        matchesNormalized(canonicalDepartment, candidate),
       ),
     );
     if (departmentMatch) return departmentMatch;

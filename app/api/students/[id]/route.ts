@@ -4,6 +4,7 @@ import { connectDB } from '@/lib/db';
 import Student from '@/models/Student';
 import { isAuthenticated } from '@/lib/auth';
 import mongoose from 'mongoose';
+import { canonicalizeDepartment, resolveStudentCollege } from '@/lib/cardTemplates';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -51,6 +52,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     // Don't allow updating securityString or matricNumber through this route
     delete body.securityString;
     delete body.passportData;
+    if (body.department) {
+      body.department = canonicalizeDepartment(body.department);
+      body.college = resolveStudentCollege(body.college, body.department);
+    }
 
     const student = await Student.findByIdAndUpdate(
       id,

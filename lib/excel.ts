@@ -10,7 +10,7 @@ import {
   getCurrentYear,
 } from './utils';
 import { fetchPassportDataUrl } from './passport';
-import { resolveStudentCollege } from './cardTemplates';
+import { canonicalizeDepartment, resolveStudentCollege } from './cardTemplates';
 import { uploadPassportToCloudinary } from './cloudinary';
 import type { Student, ImportResult } from '../types';
 
@@ -94,7 +94,7 @@ export async function parseExcelFile(buffer: Buffer): Promise<ImportResult> {
       const surname = getValue('surname');
       const otherNames = getValue('otherNames');
       const matricNumber = formatMatricNumber(getValue('matricNumber'));
-      const department = getValue('department');
+      const department = canonicalizeDepartment(getValue('department'));
       const sex = getValue('sex');
       const bloodGroup = normalizeBloodGroup(getValue('bloodGroup'));
       const genotype = normalizeGenotype(getValue('genotype'));

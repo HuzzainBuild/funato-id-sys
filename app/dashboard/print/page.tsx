@@ -46,8 +46,18 @@ function PrintPageContent() {
         // Load all students (paginated batches)
         let page = 1;
         const allStudents: Student[] = [];
+        const baseParams: Record<string, string | number> = { limit: 100 };
+        const search = searchParams.get("search");
+        const department = searchParams.get("department");
+        const year = searchParams.get("year");
+        const sex = searchParams.get("sex");
+        if (search) baseParams.search = search;
+        if (department) baseParams.department = department;
+        if (year) baseParams.year = year;
+        if (sex) baseParams.sex = sex;
+
         while (true) {
-          const data = await studentsApi.list({ page, limit: 100 });
+          const data = await studentsApi.list({ ...baseParams, page });
           allStudents.push(...data.students);
           if (page >= data.pagination.pages) break;
           page++;
@@ -107,13 +117,25 @@ function PrintPageContent() {
 
       for (let i = 0; i < students.length; i++) {
         const student = students[i];
-        const cardDataUrl = await renderIDCard(student);
+        const cardDataUrl = await renderIDCard(student, {
+          format: "jpeg",
+          quality: 0.86,
+        });
 
         if (i > 0) {
           pdf.addPage();
         }
 
-        pdf.addImage(cardDataUrl, "PNG", 0, 0, ID_CARD_WIDTH_MM, ID_CARD_HEIGHT_MM);
+        pdf.addImage(
+          cardDataUrl,
+          "JPEG",
+          0,
+          0,
+          ID_CARD_WIDTH_MM,
+          ID_CARD_HEIGHT_MM,
+          undefined,
+          "FAST",
+        );
         setRenderCount(i + 1);
         await new Promise((resolve) => setTimeout(resolve, 0));
       }

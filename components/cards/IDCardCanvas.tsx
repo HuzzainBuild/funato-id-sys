@@ -7,6 +7,7 @@ import { getIDCardTemplateSrc } from "@/lib/cardTemplates";
 export const CARD_W = 1017;
 export const CARD_H = 638;
 const EXPORT_SCALE = 2;
+const PDF_JPEG_QUALITY = 0.86;
 
 // ─── Exact positions (px at native 1017×638) ──────────────────────
 
@@ -335,6 +336,11 @@ export default function IDCardCanvas({
 }
 
 // ─── Canvas export (for PDF / PNG download) ───────────────────────
+interface RenderIDCardOptions {
+  format?: "png" | "jpeg";
+  quality?: number;
+}
+
 function font(
   size: number,
   weight = 800,
@@ -365,6 +371,7 @@ async function loadImg(src: string): Promise<HTMLImageElement> {
 
 export async function renderIDCard(
   student: Student,
+  options: RenderIDCardOptions = {},
 ): Promise<string> {
   const renderScale = EXPORT_SCALE;
   const canvas = document.createElement("canvas");
@@ -373,6 +380,8 @@ export async function renderIDCard(
   const ctx = canvas.getContext("2d")!;
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // 1 ─ Template background
   try {
@@ -574,6 +583,13 @@ export async function renderIDCard(
   // ctx.font         = font(F.security, 700, "'Courier New',monospace");
   // ctx.textAlign    = 'center';
   // ctx.textBaseline = 'middle';
+
+  if (options.format === "jpeg") {
+    return canvas.toDataURL(
+      "image/jpeg",
+      options.quality ?? PDF_JPEG_QUALITY,
+    );
+  }
 
   return canvas.toDataURL("image/png", 1.0);
 }

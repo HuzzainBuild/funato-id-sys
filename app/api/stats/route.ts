@@ -4,6 +4,7 @@ import { connectDB } from '@/lib/db';
 import Student from '@/models/Student';
 import UploadRecord from '@/models/UploadRecord';
 import { isAuthenticated } from '@/lib/auth';
+import { canonicalizeDepartment } from '@/lib/cardTemplates';
 
 export async function GET(req: NextRequest) {
   try {
@@ -49,7 +50,28 @@ export async function GET(req: NextRequest) {
         .lean(),
     ]);
 
-    const totalDepartments = departmentStats.length;
+    const canonicalDepartmentStats = departmentStats.reduce(
+      (acc: { department: string; count: number }[], item: { department?: string | null; count: number }) => {
+        const department = canonicalizeDepartment(item.department || '');
+        if (!department) return acc;
+
+        const existing = acc.find((entry) => entry.department === department);
+        if (existing) {
+          existing.count += item.count;
+        } else {
+          acc.push({ department, count: item.count });
+        }
+        return acc;
+      },
+      [],
+    ).sort(
+      (
+        a: { department: string; count: number },
+        b: { department: string; count: number },
+      ) => b.count - a.count,
+    );
+
+    const totalDepartments = canonicalDepartmentStats.length;
 
     return NextResponse.json({
       success: true,
@@ -58,7 +80,7 @@ export async function GET(req: NextRequest) {
         totalDepartments,
         totalUploads,
         recentUploads,
-        studentsByDepartment: departmentStats,
+        studentsByDepartment: canonicalDepartmentStats,
         studentsByYear: yearStats,
         studentsBySex: sexStats,
         recentStudents,
