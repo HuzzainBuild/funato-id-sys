@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { DEPARTMENTS, type Student } from '@/types';
+import { COLLEGES, DEPARTMENTS, type Student } from '@/types';
 import { studentsApi } from '@/lib/apiClient';
 import EditStudentModal from '@/components/students/EditStudentModal';
 import { ToastContainer, useToast } from '@/hooks/useToast';
@@ -23,6 +23,7 @@ export default function StudentsPage() {
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [search, setSearch] = useState('');
+  const [college, setCollege] = useState('');
   const [department, setDepartment] = useState('');
   const [year, setYear] = useState('');
   const [sex, setSex] = useState('');
@@ -30,7 +31,7 @@ export default function StudentsPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const limit = 20;
+  const limit = 50;
 
   const years = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i);
 
@@ -39,6 +40,7 @@ export default function StudentsPage() {
     try {
       const params: Record<string, string | number> = { page, limit };
       if (search) params.search = search;
+      if (college) params.college = college;
       if (department) params.department = department;
       if (year) params.year = year;
       if (sex) params.sex = sex;
@@ -52,7 +54,7 @@ export default function StudentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, department, year, sex, toastError]);
+  }, [page, search, college, department, year, sex, toastError]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -118,6 +120,7 @@ export default function StudentsPage() {
   const handlePrintAllPages = () => {
     const params = new URLSearchParams({ all: '1' });
     if (search) params.set('search', search);
+    if (college) params.set('college', college);
     if (department) params.set('department', department);
     if (year) params.set('year', year);
     if (sex) params.set('sex', sex);
@@ -183,7 +186,7 @@ export default function StudentsPage() {
 
       {/* Filters */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="lg:col-span-2">
             <input
               type="text"
@@ -193,6 +196,19 @@ export default function StudentsPage() {
               className="form-input"
             />
           </div>
+          <select
+            value={college}
+            onChange={e => {
+              setCollege(e.target.value);
+              setPage(1);
+            }}
+            className="form-input"
+          >
+            <option value="">All Colleges</option>
+            {COLLEGES.map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
           <select
             value={department}
             onChange={e => { setDepartment(e.target.value === 'All Departments' ? '' : e.target.value); setPage(1); }}

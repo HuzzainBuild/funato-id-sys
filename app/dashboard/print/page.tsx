@@ -48,10 +48,12 @@ function PrintPageContent() {
         const allStudents: Student[] = [];
         const baseParams: Record<string, string | number> = { limit: 100 };
         const search = searchParams.get("search");
+        const college = searchParams.get("college");
         const department = searchParams.get("department");
         const year = searchParams.get("year");
         const sex = searchParams.get("sex");
         if (search) baseParams.search = search;
+        if (college) baseParams.college = college;
         if (department) baseParams.department = department;
         if (year) baseParams.year = year;
         if (sex) baseParams.sex = sex;

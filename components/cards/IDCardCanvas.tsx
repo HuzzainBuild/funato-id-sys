@@ -96,7 +96,7 @@ export default function IDCardCanvas({
   const dW = Math.round(CARD_W * scale);
   const dH = Math.round(CARD_H * scale);
   const s = scale; // shorthand for font scaling
-  const templateSrc = getIDCardTemplateSrc(student);
+  const previewTemplateSrc = getRasterTemplateSrc(student);
 
   const style = (
     left: number,
@@ -159,7 +159,7 @@ export default function IDCardCanvas({
     >
       {/* ── Pre-designed background template ── */}
       <img
-        src={templateSrc}
+        src={previewTemplateSrc}
         alt=""
         draggable={false}
         style={{
@@ -369,6 +369,10 @@ async function loadImg(src: string): Promise<HTMLImageElement> {
   });
 }
 
+function getRasterTemplateSrc(student: Student) {
+  return getIDCardTemplateSrc(student).replace(/\.pdf$/i, ".jpg");
+}
+
 export async function renderIDCard(
   student: Student,
   options: RenderIDCardOptions = {},
@@ -385,7 +389,7 @@ export async function renderIDCard(
 
   // 1 ─ Template background
   try {
-    const tpl = await loadImg(getIDCardTemplateSrc(student));
+    const tpl = await loadImg(getRasterTemplateSrc(student));
     ctx.drawImage(tpl, 0, 0, canvas.width, canvas.height);
   } catch {
     ctx.fillStyle = "#c8e6c8";

@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { DEPARTMENTS, type Student } from "@/types";
+import { COLLEGES, DEPARTMENTS, type Student } from "@/types";
 import { studentsApi } from "@/lib/apiClient";
 import { ToastContainer, useToast } from "@/hooks/useToast";
 import dynamic from "next/dynamic";
@@ -23,6 +23,7 @@ function CardsPageContent() {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [college, setCollege] = useState("");
   const [department, setDepartment] = useState("");
   const [year, setYear] = useState("");
   const [page, setPage] = useState(1);
@@ -43,6 +44,7 @@ function CardsPageContent() {
         limit: 50,
       };
       if (search) params.search = search;
+      if (college) params.college = college;
       if (department) params.department = department;
       if (year) params.year = year;
 
@@ -60,7 +62,7 @@ function CardsPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, department, year, focusId, toastError]);
+  }, [page, search, college, department, year, focusId, toastError]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -83,6 +85,7 @@ function CardsPageContent() {
   const handlePrintAll = () => {
     const params = new URLSearchParams({ all: "1" });
     if (search) params.set("search", search);
+    if (college) params.set("college", college);
     if (department) params.set("department", department);
     if (year) params.set("year", year);
     router.push(`/dashboard/print?${params.toString()}`);
@@ -182,6 +185,21 @@ function CardsPageContent() {
               }}
               className="form-input flex-1"
             />
+            <select
+              value={college}
+              onChange={(e) => {
+                setCollege(e.target.value);
+                setPage(1);
+              }}
+              className="form-input w-56"
+            >
+              <option value="">All Colleges</option>
+              {COLLEGES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
             <select
               value={department}
               onChange={(e) => {

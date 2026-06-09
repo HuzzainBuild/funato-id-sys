@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const search = searchParams.get('search') || '';
+    const college = searchParams.get('college') || '';
     const department = searchParams.get('department') || '';
     const year = searchParams.get('year') || '';
     const sex = searchParams.get('sex') || '';
@@ -31,10 +32,14 @@ export async function GET(req: NextRequest) {
     const query: Record<string, unknown> = {};
 
     if (search) {
+      const matricSearch = formatMatricNumber(search);
       query.$or = [
         { surname: { $regex: search, $options: 'i' } },
         { otherNames: { $regex: search, $options: 'i' } },
         { matricNumber: { $regex: search, $options: 'i' } },
+        ...(matricSearch !== search
+          ? [{ matricNumber: { $regex: matricSearch, $options: 'i' } }]
+          : []),
       ];
     }
 
@@ -43,6 +48,7 @@ export async function GET(req: NextRequest) {
         $in: getDepartmentSearchValues(department).map((value) => new RegExp(`^${escapeRegex(value)}$`, 'i')),
       };
     }
+    if (college) query.college = new RegExp(`^${escapeRegex(college)}$`, 'i');
     if (year) query.importYear = parseInt(year);
     if (sex) query.sex = sex;
 

@@ -13,7 +13,7 @@ interface CloudinaryUploadResult {
 }
 
 const PASSPORT_IMAGE_WIDTH = 480;
-const PASSPORT_IMAGE_HEIGHT = 500;
+const PASSPORT_IMAGE_HEIGHT = 510;
 
 function assertCloudinaryConfig() {
   if (

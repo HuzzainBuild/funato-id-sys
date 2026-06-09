@@ -18,7 +18,7 @@ export const COLLEGE_TEMPLATES: Record<CollegeTemplateKey, CollegeTemplate> = {
   livestock: {
     key: 'livestock',
     college: 'College of Livestock Development & Environmental Sciences',
-    src: '/assets/template_livestock.jpg',
+    src: '/assets/template_livestock.pdf',
     aliases: [
       'College of Livestock Development and Environmental Sciences',
       'College of Food and Veterinary Sciences',
@@ -37,7 +37,7 @@ export const COLLEGE_TEMPLATES: Record<CollegeTemplateKey, CollegeTemplate> = {
   agric: {
     key: 'agric',
     college: 'College of Agricultural Development & Human Ecology',
-    src: '/assets/template_agric.jpg',
+    src: '/assets/template_agric.pdf',
     aliases: [
       'College of Agricultural Development and Human Ecology',
       'College of Agricultural Management and Rural Development',
@@ -58,7 +58,7 @@ export const COLLEGE_TEMPLATES: Record<CollegeTemplateKey, CollegeTemplate> = {
   engineering: {
     key: 'engineering',
     college: 'College of Engineering & Technology',
-    src: '/assets/template_engineering.jpg',
+    src: '/assets/template_engineering.pdf',
     aliases: [
       'College of Engineering and Technology',
     ],
@@ -79,7 +79,7 @@ export const COLLEGE_TEMPLATES: Record<CollegeTemplateKey, CollegeTemplate> = {
   science: {
     key: 'science',
     college: 'College of Science & Computing',
-    src: '/assets/template_science.jpg',
+    src: '/assets/template_science.pdf',
     aliases: [
       'College of Science and Computing',
       'College of Basic Sciences',
@@ -102,7 +102,7 @@ export const COLLEGE_TEMPLATES: Record<CollegeTemplateKey, CollegeTemplate> = {
   plant: {
     key: 'plant',
     college: 'College of Plant Science & Crop Production',
-    src: '/assets/template_plant.jpg',
+    src: '/assets/template_plant.pdf',
     aliases: [
       'College of Plant Science and Crop Production',
       'College of Plant Sciences and Crop Production',
@@ -119,7 +119,7 @@ export const COLLEGE_TEMPLATES: Record<CollegeTemplateKey, CollegeTemplate> = {
   environmental: {
     key: 'environmental',
     college: 'College of Environmental Design & Geospatial Technology',
-    src: '/assets/template_environmental.jpg',
+    src: '/assets/template_environmental.pdf',
     aliases: [
       'College of Environmental Design and Geospatial Technology',
     ],

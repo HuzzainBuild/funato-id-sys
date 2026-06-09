@@ -31,10 +31,15 @@ export function generateId(): string {
  * Format matric number consistently
  */
 export function formatMatricNumber(matric: string): string {
-  return matric
-    .trim()
-    .toUpperCase()
-    .replace(/\b0(\d{4})\b/g, '$1');
+  const cleaned = matric.trim().toUpperCase();
+
+  if (/^\d+$/.test(cleaned)) {
+    return cleaned.padStart(5, '0');
+  }
+
+  return cleaned.replace(/\d+$/g, (digits) =>
+    digits.length <= 5 ? digits.padStart(5, '0') : digits,
+  );
 }
 
 /**
