@@ -46,7 +46,9 @@ function PrintPageContent() {
         // Load all students (paginated batches)
         let page = 1;
         const allStudents: Student[] = [];
-        const baseParams: Record<string, string | number> = { limit: 100 };
+        const baseParams: Record<string, string | number> = {
+          limit: 100,
+        };
         const search = searchParams.get("search");
         const college = searchParams.get("college");
         const department = searchParams.get("department");
@@ -59,7 +61,10 @@ function PrintPageContent() {
         if (sex) baseParams.sex = sex;
 
         while (true) {
-          const data = await studentsApi.list({ ...baseParams, page });
+          const data = await studentsApi.list({
+            ...baseParams,
+            page,
+          });
           allStudents.push(...data.students);
           if (page >= data.pagination.pages) break;
           page++;
@@ -101,7 +106,10 @@ function PrintPageContent() {
 
   const handleExportPDF = async () => {
     if (students.length === 0) {
-      toast.warning("No students selected", "Select students before exporting.");
+      toast.warning(
+        "No students selected",
+        "Select students before exporting.",
+      );
       return;
     }
 
@@ -109,7 +117,8 @@ function PrintPageContent() {
     setRenderCount(0);
     try {
       const jsPDF = (await import("jspdf")).default;
-      const { renderIDCard } = await import("@/components/cards/IDCardCanvas");
+      const { renderIDCard } =
+        await import("@/components/cards/IDCardCanvas");
 
       const pdf = new jsPDF({
         orientation: "landscape",
@@ -159,14 +168,18 @@ function PrintPageContent() {
 
   const handleDownloadAll = async () => {
     if (students.length === 0) {
-      toast.warning("No students selected", "Select students before downloading.");
+      toast.warning(
+        "No students selected",
+        "Select students before downloading.",
+      );
       return;
     }
 
     setGenerating(true);
     setRenderCount(0);
     try {
-      const { renderIDCard } = await import("@/components/cards/IDCardCanvas");
+      const { renderIDCard } =
+        await import("@/components/cards/IDCardCanvas");
 
       for (let i = 0; i < students.length; i++) {
         const student = students[i];
@@ -226,7 +239,9 @@ function PrintPageContent() {
           <div className="flex items-center gap-3">
             <button
               onClick={handleDownloadAll}
-              disabled={students.length === 0 || generating || exportingPdf}
+              disabled={
+                students.length === 0 || generating || exportingPdf
+              }
               className="px-4 py-2 text-sm font-bold rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
             >
               {generating
@@ -236,7 +251,9 @@ function PrintPageContent() {
 
             <button
               onClick={handleExportPDF}
-              disabled={students.length === 0 || exportingPdf || generating}
+              disabled={
+                students.length === 0 || exportingPdf || generating
+              }
               className="px-4 py-2 text-sm font-bold rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
               {exportingPdf
@@ -276,13 +293,11 @@ function PrintPageContent() {
 
       {/* Print Instructions (no-print) */}
       <div className="no-print bg-amber-50 border-b border-amber-200 px-8 py-3 flex items-center gap-3">
-        <span className="text-amber-600 text-lg flex-shrink-0">
-          💡
-        </span>
+        <span className="text-amber-600 text-lg shrink-0">💡</span>
         <p className="text-sm text-amber-800 font-medium">
-          <strong>Print Settings:</strong> Set paper to custom/card size
-          85.6mm x 54mm, margins to none/0, disable headers/footers, and
-          enable background graphics.
+          <strong>Print Settings:</strong> Set paper to custom/card
+          size 85.6mm x 54mm, margins to none/0, disable
+          headers/footers, and enable background graphics.
         </p>
       </div>
 
@@ -307,39 +322,37 @@ function PrintPageContent() {
           style={{ minHeight: "100vh" }}
         >
           {students.map((student, pageIdx) => (
-              <div
-                key={student._id || student.matricNumber}
-                className="print-page"
-                style={{
-                  width: `${ID_CARD_WIDTH_MM}mm`,
-                  height: `${ID_CARD_HEIGHT_MM}mm`,
-                  padding: 0,
-                  pageBreakAfter:
-                    pageIdx < pages - 1 ? "always" : "auto",
-                  boxSizing: "border-box",
-                  margin: "12mm auto",
-                  backgroundColor: "#fff",
-                  overflow: "hidden",
-                }}
-              >
-                {/* Page header (no-print) */}
-                <div className="no-print mb-4 flex items-center justify-between">
-                  <p className="text-xs text-gray-400 font-medium">
-                    Page {pageIdx + 1} of {pages}
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    85.6mm x 54mm
-                  </p>
-                </div>
-
-                <div className="print-card-frame">
-                  <IDCardCanvas
-                    student={student}
-                    scale={ID_CARD_PRINT_SCALE}
-                    renderForExport={false}
-                  />
-                </div>
+            <div
+              key={student._id || student.matricNumber}
+              className="print-page"
+              style={{
+                width: `${ID_CARD_WIDTH_MM}mm`,
+                height: `${ID_CARD_HEIGHT_MM}mm`,
+                padding: 0,
+                pageBreakAfter:
+                  pageIdx < pages - 1 ? "always" : "auto",
+                boxSizing: "border-box",
+                margin: "12mm auto",
+                backgroundColor: "#fff",
+                overflow: "hidden",
+              }}
+            >
+              {/* Page header (no-print) */}
+              <div className="no-print mb-4 flex items-center justify-between">
+                <p className="text-xs text-gray-400 font-medium">
+                  Page {pageIdx + 1} of {pages}
+                </p>
+                <p className="text-xs text-gray-400">85.6mm x 54mm</p>
               </div>
+
+              <div className="print-card-frame">
+                <IDCardCanvas
+                  student={student}
+                  scale={ID_CARD_PRINT_SCALE}
+                  renderForExport={false}
+                />
+              </div>
+            </div>
           ))}
         </div>
       )}

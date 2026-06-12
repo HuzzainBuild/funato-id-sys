@@ -14,13 +14,13 @@ const PDF_JPEG_QUALITY = 0.86;
 const P = {
   surname: { left: 60, top: 285 },
   otherName: { left: 60, top: 375 },
-  matric: { left: 220, top: 430 },
-  sex: { left: 450, top: 430 },
-  dept: { left: 60, top: 510 },
-  blood: { left: 260, top: 560 },
-  geno: { left: 540, top: 560 },
+  matric: { left: 230, top: 437 },
+  sex: { left: 450, top: 437 },
+  dept: { left: 60, top: 515 },
+  blood: { left: 270, top: 569 },
+  geno: { left: 545, top: 569 },
   qr: { left: 480, top: 250, size: 170 },
-  photo: { left: 690, top: 285, w: 290, h: 300 },
+  photo: { left: 690, top: 285, w: 280, h: 300 },
 };
 
 // Font sizes at native resolution
