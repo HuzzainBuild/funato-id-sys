@@ -19,6 +19,9 @@ function CardsPageContent() {
   const toast = useToast();
   const toastError = toast.error;
   const focusId = searchParams.get("id");
+  const uploadId = searchParams.get("uploadId") || "";
+  const initialPrinted = searchParams.get("printed") || "";
+  const initialSort = searchParams.get("sort") || "";
 
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +29,8 @@ function CardsPageContent() {
   const [college, setCollege] = useState("");
   const [department, setDepartment] = useState("");
   const [year, setYear] = useState("");
+  const [printed, setPrinted] = useState(initialPrinted);
+  const sort = initialSort;
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -47,6 +52,9 @@ function CardsPageContent() {
       if (college) params.college = college;
       if (department) params.department = department;
       if (year) params.year = year;
+      if (printed) params.printed = printed;
+      if (uploadId) params.uploadId = uploadId;
+      if (sort) params.sort = sort;
 
       const data = await studentsApi.list(params);
       setStudents(data.students);
@@ -62,7 +70,7 @@ function CardsPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, college, department, year, focusId, toastError]);
+  }, [page, search, college, department, year, printed, sort, uploadId, focusId, toastError]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -88,6 +96,9 @@ function CardsPageContent() {
     if (college) params.set("college", college);
     if (department) params.set("department", department);
     if (year) params.set("year", year);
+    if (printed) params.set("printed", printed);
+    if (uploadId) params.set("uploadId", uploadId);
+    if (sort) params.set("sort", sort);
     router.push(`/dashboard/print?${params.toString()}`);
   };
 
@@ -232,6 +243,18 @@ function CardsPageContent() {
                   {y}
                 </option>
               ))}
+            </select>
+            <select
+              value={printed}
+              onChange={(e) => {
+                setPrinted(e.target.value);
+                setPage(1);
+              }}
+              className="form-input w-36"
+            >
+              <option value="">All Print</option>
+              <option value="unprinted">Unprinted</option>
+              <option value="printed">Printed</option>
             </select>
           </div>
 

@@ -16,6 +16,8 @@ export interface IStudent extends Document {
   qrData?: string;
   importYear: number;
   uploadRecordId?: mongoose.Types.ObjectId;
+  printedAt?: Date;
+  printCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -94,6 +96,13 @@ const StudentSchema = new Schema<IStudent>(
       type: Schema.Types.ObjectId,
       ref: "UploadRecord",
     },
+    printedAt: {
+      type: Date,
+    },
+    printCount: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,
@@ -104,6 +113,7 @@ const StudentSchema = new Schema<IStudent>(
 
 // Indexes for efficient querying
 StudentSchema.index({ department: 1 });
+StudentSchema.index({ uploadRecordId: 1, printedAt: 1 });
 StudentSchema.index({
   surname: "text",
   otherNames: "text",

@@ -3,8 +3,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { COLLEGES, DEPARTMENTS, type Student } from '@/types';
-import { studentsApi } from '@/lib/apiClient';
+import { COLLEGES, DEPARTMENTS, type Student, type UploadRecord } from '@/types';
+import { maintenanceApi, studentsApi, uploadsApi } from '@/lib/apiClient';
 import EditStudentModal from '@/components/students/EditStudentModal';
 import { ToastContainer, useToast } from '@/hooks/useToast';
 
@@ -18,7 +18,9 @@ export default function StudentsPage() {
   const toast = useToast();
   const toastError = toast.error;
   const [students, setStudents] = useState<Student[]>([]);
+  const [uploads, setUploads] = useState<UploadRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [repairing, setRepairing] = useState(false);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
@@ -27,6 +29,8 @@ export default function StudentsPage() {
   const [department, setDepartment] = useState('');
   const [year, setYear] = useState('');
   const [sex, setSex] = useState('');
+  const [printed, setPrinted] = useState('');
+  const [uploadId, setUploadId] = useState('');
   const [editStudent, setEditStudent] = useState<Student | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -44,6 +48,8 @@ export default function StudentsPage() {
       if (department) params.department = department;
       if (year) params.year = year;
       if (sex) params.sex = sex;
+      if (printed) params.printed = printed;
+      if (uploadId) params.uploadId = uploadId;
 
       const data = await studentsApi.list(params);
       setStudents(data.students);
@@ -54,13 +60,23 @@ export default function StudentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, college, department, year, sex, toastError]);
+  }, [page, search, college, department, year, sex, printed, uploadId, toastError]);
+
+  const fetchUploads = useCallback(async () => {
+    try {
+      const data = await uploadsApi.list();
+      setUploads(data.uploads);
+    } catch (err) {
+      toastError('Failed to load uploads', (err as Error).message);
+    }
+  }, [toastError]);
 
   useEffect(() => {
     queueMicrotask(() => {
       fetchStudents();
+      fetchUploads();
     });
-  }, [fetchStudents]);
+  }, [fetchStudents, fetchUploads]);
 
   // Debounced search
   useEffect(() => {
@@ -124,7 +140,87 @@ export default function StudentsPage() {
     if (department) params.set('department', department);
     if (year) params.set('year', year);
     if (sex) params.set('sex', sex);
+    if (printed) params.set('printed', printed);
+    if (uploadId) params.set('uploadId', uploadId);
     router.push(`/dashboard/print?${params.toString()}`);
+  };
+
+  const handlePrintUploadUnprinted = () => {
+    if (!uploadId) {
+      toast.warning('Select an upload batch', 'Choose one upload history first.');
+      return;
+    }
+    const params = new URLSearchParams({
+      all: '1',
+      uploadId,
+      printed: 'unprinted',
+      sort: 'college',
+    });
+    if (college) params.set('college', college);
+    router.push(`/dashboard/print?${params.toString()}`);
+  };
+
+  const handleMarkUploadPrinted = async () => {
+    if (!uploadId) {
+      toast.warning('Select an upload batch', 'Choose the upload batch already printed.');
+      return;
+    }
+    try {
+      const result = await uploadsApi.markPrinted(uploadId);
+      toast.success(`Marked ${result.updated} students as printed`);
+      fetchStudents();
+      fetchUploads();
+    } catch (err) {
+      toast.error('Update failed', (err as Error).message);
+    }
+  };
+
+  const handleDeleteUploadBatch = async () => {
+    if (!uploadId) {
+      toast.warning('Select an upload batch', 'Choose the upload history to delete.');
+      return;
+    }
+
+    const upload = uploads.find(item => item._id === uploadId);
+    const label = upload?.originalName || upload?.fileName || 'selected upload';
+    const confirmed = window.confirm(
+      `Delete "${label}" and all ${upload?.studentCount ?? ''} students in this batch? This cannot be undone.`,
+    );
+
+    if (!confirmed) return;
+
+    setDeleting(true);
+    try {
+      const result = await uploadsApi.deleteBatch(uploadId);
+      toast.success(
+        'Upload batch deleted',
+        `${result.deletedStudents} students removed`,
+      );
+      setUploadId('');
+      setSelectedIds(new Set());
+      fetchStudents();
+      fetchUploads();
+    } catch (err) {
+      toast.error('Delete batch failed', (err as Error).message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleNormalizeDepartments = async () => {
+    setRepairing(true);
+    try {
+      const result = await maintenanceApi.normalizeDepartments();
+      toast.success(
+        'Departments normalized',
+        `${result.updated} of ${result.checked} students updated`,
+      );
+      fetchStudents();
+    } catch (err) {
+      toast.error('Repair failed', (err as Error).message);
+    } finally {
+      setRepairing(false);
+    }
   };
 
   const passportUpload = async (student: Student, file: File) => {
@@ -157,6 +253,13 @@ export default function StudentsPage() {
           >
             Print All {total > 0 ? total.toLocaleString() : ''}
           </button>
+          <button
+            onClick={handlePrintUploadUnprinted}
+            disabled={!uploadId}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Print Upload Unprinted
+          </button>
           {selectedIds.size > 0 && (
             <>
               <button
@@ -186,7 +289,7 @@ export default function StudentsPage() {
 
       {/* Filters */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
           <div className="lg:col-span-2">
             <input
               type="text"
@@ -207,6 +310,21 @@ export default function StudentsPage() {
             <option value="">All Colleges</option>
             {COLLEGES.map(c => (
               <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <select
+            value={uploadId}
+            onChange={e => {
+              setUploadId(e.target.value);
+              setPage(1);
+            }}
+            className="form-input"
+          >
+            <option value="">All Uploads</option>
+            {uploads.map(upload => (
+              <option key={upload._id} value={upload._id}>
+                {(upload.originalName || upload.fileName)} - {upload.unprintedCount ?? 0} unprinted
+              </option>
             ))}
           </select>
           <select
@@ -238,7 +356,39 @@ export default function StudentsPage() {
               <option value="Male">Male</option>
               <option value="Female">Female</option>
             </select>
+            <select
+              value={printed}
+              onChange={e => { setPrinted(e.target.value); setPage(1); }}
+              className="form-input w-36"
+            >
+              <option value="">All Print</option>
+              <option value="unprinted">Unprinted</option>
+              <option value="printed">Printed</option>
+            </select>
           </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            onClick={handleMarkUploadPrinted}
+            disabled={!uploadId}
+            className="px-3 py-2 text-xs font-bold rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            Mark Selected Upload Printed
+          </button>
+          <button
+            onClick={handleDeleteUploadBatch}
+            disabled={!uploadId || deleting}
+            className="px-3 py-2 text-xs font-bold rounded-xl border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50"
+          >
+            Delete Selected Upload Batch
+          </button>
+          <button
+            onClick={handleNormalizeDepartments}
+            disabled={repairing}
+            className="px-3 py-2 text-xs font-bold rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            {repairing ? 'Fixing Departments...' : 'Fix Department Duplicates'}
+          </button>
         </div>
       </div>
 

@@ -15,6 +15,9 @@ export interface Student {
   securityString: string;
   qrData?: string;
   importYear: number;
+  uploadRecordId?: string;
+  printedAt?: string;
+  printCount?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -31,11 +34,17 @@ export interface Admin {
 export interface UploadRecord {
   _id?: string;
   fileName: string;
+  originalName?: string;
   totalRecords: number;
   successRecords: number;
   duplicates: number;
-  errors: number;
+  errors?: number;
+  errorRecords?: number;
   uploadedBy: string;
+  uploadedByName?: string;
+  studentCount?: number;
+  printedCount?: number;
+  unprintedCount?: number;
   createdAt?: string;
 }
 

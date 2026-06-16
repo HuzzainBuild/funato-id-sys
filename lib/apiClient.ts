@@ -75,6 +75,11 @@ export interface UploadResponse {
   };
 }
 
+export interface UploadsResponse {
+  success: boolean;
+  uploads: import('../types').UploadRecord[];
+}
+
 export const studentsApi = {
   list: (params: Record<string, string | number> = {}) => {
     const qs = new URLSearchParams(
@@ -93,6 +98,18 @@ export const studentsApi = {
 
   delete: (id: string) => api.delete(`/api/students/${id}`),
 
+  markPrinted: (ids: string[]) =>
+    apiRequest<{ success: boolean; updated: number }>('/api/students/bulk', {
+      method: 'PATCH',
+      body: JSON.stringify({ ids, action: 'markPrinted' }),
+    }),
+
+  markUnprinted: (ids: string[]) =>
+    apiRequest<{ success: boolean; updated: number }>('/api/students/bulk', {
+      method: 'PATCH',
+      body: JSON.stringify({ ids, action: 'markUnprinted' }),
+    }),
+
   uploadPassport: (studentId: string, file: File) => {
     const fd = new FormData();
     fd.append('passport', file);
@@ -105,4 +122,34 @@ export const studentsApi = {
     fd.append('file', file);
     return api.upload<UploadResponse>('/api/upload/excel', fd);
   },
+};
+
+export const uploadsApi = {
+  list: () => api.get<UploadsResponse>('/api/uploads'),
+
+  markPrinted: (uploadId: string) =>
+    apiRequest<{ success: boolean; updated: number }>('/api/uploads', {
+      method: 'PATCH',
+      body: JSON.stringify({ uploadId, action: 'markPrinted' }),
+    }),
+
+  markUnprinted: (uploadId: string) =>
+    apiRequest<{ success: boolean; updated: number }>('/api/uploads', {
+      method: 'PATCH',
+      body: JSON.stringify({ uploadId, action: 'markUnprinted' }),
+    }),
+
+  deleteBatch: (uploadId: string) =>
+    apiRequest<{ success: boolean; deletedStudents: number; deletedUploads: number }>('/api/uploads', {
+      method: 'DELETE',
+      body: JSON.stringify({ uploadId }),
+    }),
+};
+
+export const maintenanceApi = {
+  normalizeDepartments: () =>
+    api.post<{ success: boolean; checked: number; updated: number }>(
+      '/api/maintenance/departments',
+      {},
+    ),
 };

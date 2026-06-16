@@ -54,11 +54,17 @@ function PrintPageContent() {
         const department = searchParams.get("department");
         const year = searchParams.get("year");
         const sex = searchParams.get("sex");
+        const uploadId = searchParams.get("uploadId");
+        const printed = searchParams.get("printed");
+        const sort = searchParams.get("sort");
         if (search) baseParams.search = search;
         if (college) baseParams.college = college;
         if (department) baseParams.department = department;
         if (year) baseParams.year = year;
         if (sex) baseParams.sex = sex;
+        if (uploadId) baseParams.uploadId = uploadId;
+        if (printed) baseParams.printed = printed;
+        if (sort) baseParams.sort = sort;
 
         while (true) {
           const data = await studentsApi.list({
@@ -96,8 +102,26 @@ function PrintPageContent() {
 
   const isRendering = exportingPdf || generating;
 
-  const handlePrint = () => {
+  const markLoadedStudentsPrinted = async () => {
+    const ids = students
+      .map((student) => student._id)
+      .filter((id): id is string => Boolean(id));
+
+    if (!ids.length) return;
+
+    try {
+      await studentsApi.markPrinted(ids);
+    } catch (err) {
+      toast.warning(
+        "Printed status not saved",
+        (err as Error).message,
+      );
+    }
+  };
+
+  const handlePrint = async () => {
     window.print();
+    await markLoadedStudentsPrinted();
     toast.info(
       "Print dialog opened",
       "Use card/custom paper size 85.6mm x 54mm, disable headers/footers",
@@ -154,6 +178,7 @@ function PrintPageContent() {
       pdf.save(
         `FUNATO_ID_Cards_${new Date().toISOString().split("T")[0]}.pdf`,
       );
+      await markLoadedStudentsPrinted();
       toast.success(
         "PDF exported!",
         `${students.length} ID card pages saved to PDF`,
@@ -191,6 +216,7 @@ function PrintPageContent() {
         setRenderCount(i + 1);
         await new Promise((r) => setTimeout(r, 200));
       }
+      await markLoadedStudentsPrinted();
       toast.success("All cards downloaded!");
     } finally {
       setGenerating(false);

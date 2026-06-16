@@ -379,6 +379,23 @@ export default function ImportPage() {
             </div>
           )}
 
+          {result && result.imported > 0 && (
+            <button
+              onClick={() =>
+                router.push(
+                  `/dashboard/print?all=1&uploadId=${result.uploadId}&printed=unprinted&sort=college`,
+                )
+              }
+              className="w-full py-3 rounded-2xl font-bold text-white text-sm transition-all active:scale-95"
+              style={{
+                background:
+                  "linear-gradient(135deg, #2563eb, #1d4ed8)",
+              }}
+            >
+              Print New Upload Only
+            </button>
+          )}
+
           {/* Upload Button */}
           {file && !result && (
             <button

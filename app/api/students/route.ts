@@ -1,12 +1,16 @@
 // app/api/students/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import mongoose from 'mongoose';
+import type { SortOrder } from 'mongoose';
 import { connectDB } from '@/lib/db';
 import Student from '@/models/Student';
 import { isAuthenticated } from '@/lib/auth';
 import { formatMatricNumber } from '@/lib/utils';
 import {
+  COLLEGE_TEMPLATES,
   canonicalizeDepartment,
   getDepartmentSearchValues,
+  resolveCollegeTemplate,
   resolveStudentCollege,
 } from '@/lib/cardTemplates';
 
@@ -27,6 +31,9 @@ export async function GET(req: NextRequest) {
     const department = searchParams.get('department') || '';
     const year = searchParams.get('year') || '';
     const sex = searchParams.get('sex') || '';
+    const uploadId = searchParams.get('uploadId') || '';
+    const printed = searchParams.get('printed') || '';
+    const sort = searchParams.get('sort') || '';
 
     // Build query
     const query: Record<string, unknown> = {};
@@ -48,15 +55,67 @@ export async function GET(req: NextRequest) {
         $in: getDepartmentSearchValues(department).map((value) => new RegExp(`^${escapeRegex(value)}$`, 'i')),
       };
     }
-    if (college) query.college = new RegExp(`^${escapeRegex(college)}$`, 'i');
+    if (college) {
+      const collegeTemplate = resolveCollegeTemplate(college);
+      const knownCollege = Object.values(COLLEGE_TEMPLATES).some(
+        (template) => template.key === collegeTemplate.key && template.college === collegeTemplate.college,
+      );
+      const departmentValues = knownCollege
+        ? Array.from(
+            new Set(
+              collegeTemplate.departments.flatMap((value) =>
+                getDepartmentSearchValues(value),
+              ),
+            ),
+          )
+        : [];
+
+      addAndCondition(query, {
+        $or: [
+          { college: new RegExp(`^${escapeRegex(college)}$`, 'i') },
+          ...(departmentValues.length
+            ? [
+                {
+                  department: {
+                    $in: departmentValues.map(
+                      (value) => new RegExp(`^${escapeRegex(value)}$`, 'i'),
+                    ),
+                  },
+                },
+              ]
+            : []),
+        ],
+      });
+    }
     if (year) query.importYear = parseInt(year);
     if (sex) query.sex = sex;
+    if (uploadId && mongoose.Types.ObjectId.isValid(uploadId)) {
+      query.uploadRecordId = new mongoose.Types.ObjectId(uploadId);
+    }
+    if (printed === 'unprinted') {
+      const unprintedCondition = {
+        $or: [{ printedAt: { $exists: false } }, { printedAt: null }],
+      };
+      addAndCondition(query, unprintedCondition);
+    } else if (printed === 'printed') {
+      query.printedAt = { $exists: true, $ne: null };
+    }
 
     const skip = (page - 1) * limit;
+    const sortBy: Record<string, SortOrder> =
+      sort === 'college'
+        ? {
+            college: 1,
+            department: 1,
+            surname: 1,
+            otherNames: 1,
+            matricNumber: 1,
+          }
+        : { createdAt: -1 };
 
     const [students, total] = await Promise.all([
       Student.find(query)
-        .sort({ createdAt: -1 })
+        .sort(sortBy)
         .skip(skip)
         .limit(limit)
         .lean(),
@@ -128,4 +187,22 @@ export async function POST(req: NextRequest) {
 
 function escapeRegex(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function addAndCondition(
+  query: Record<string, unknown>,
+  condition: Record<string, unknown>,
+) {
+  if (Array.isArray(query.$and)) {
+    query.$and.push(condition);
+    return;
+  }
+
+  if (Array.isArray(query.$or)) {
+    query.$and = [{ $or: query.$or }, condition];
+    delete query.$or;
+    return;
+  }
+
+  query.$and = [condition];
 }
