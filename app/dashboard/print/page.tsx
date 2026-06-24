@@ -119,15 +119,6 @@ function PrintPageContent() {
     }
   };
 
-  const handlePrint = async () => {
-    window.print();
-    await markLoadedStudentsPrinted();
-    toast.info(
-      "Print dialog opened",
-      "Use card/custom paper size 85.6mm x 54mm, disable headers/footers",
-    );
-  };
-
   const handleExportPDF = async () => {
     if (students.length === 0) {
       toast.warning(
@@ -140,48 +131,22 @@ function PrintPageContent() {
     setExportingPdf(true);
     setRenderCount(0);
     try {
-      const jsPDF = (await import("jspdf")).default;
-      const { renderIDCard } =
+      const { renderIDCardsPdf } =
         await import("@/components/cards/IDCardCanvas");
-
-      const pdf = new jsPDF({
-        orientation: "landscape",
-        unit: "mm",
-        format: [ID_CARD_WIDTH_MM, ID_CARD_HEIGHT_MM],
+      const pdfBytes = await renderIDCardsPdf(students, setRenderCount);
+      const blob = new Blob([new Uint8Array(pdfBytes)], {
+        type: "application/pdf",
       });
-
-      for (let i = 0; i < students.length; i++) {
-        const student = students[i];
-        const cardDataUrl = await renderIDCard(student, {
-          format: "jpeg",
-          quality: 0.86,
-        });
-
-        if (i > 0) {
-          pdf.addPage();
-        }
-
-        pdf.addImage(
-          cardDataUrl,
-          "JPEG",
-          0,
-          0,
-          ID_CARD_WIDTH_MM,
-          ID_CARD_HEIGHT_MM,
-          undefined,
-          "FAST",
-        );
-        setRenderCount(i + 1);
-        await new Promise((resolve) => setTimeout(resolve, 0));
-      }
-
-      pdf.save(
-        `FUNATO_ID_Cards_${new Date().toISOString().split("T")[0]}.pdf`,
-      );
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `FUNATO_ID_Cards_${new Date().toISOString().split("T")[0]}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
       await markLoadedStudentsPrinted();
       toast.success(
         "PDF exported!",
-        `${students.length} ID card pages saved to PDF`,
+        `${students.length} vector ID card pages saved to PDF`,
       );
     } catch (err) {
       console.error("PDF export error:", err);
@@ -191,11 +156,11 @@ function PrintPageContent() {
     }
   };
 
-  const handleDownloadAll = async () => {
+  const handleOpenPDF = async () => {
     if (students.length === 0) {
       toast.warning(
         "No students selected",
-        "Select students before downloading.",
+        "Select students before opening PDF.",
       );
       return;
     }
@@ -203,21 +168,16 @@ function PrintPageContent() {
     setGenerating(true);
     setRenderCount(0);
     try {
-      const { renderIDCard } =
+      const { renderIDCardsPdf } =
         await import("@/components/cards/IDCardCanvas");
-
-      for (let i = 0; i < students.length; i++) {
-        const student = students[i];
-        const cardDataUrl = await renderIDCard(student);
-        const a = document.createElement("a");
-        a.href = cardDataUrl;
-        a.download = `ID_${student.matricNumber}.png`;
-        a.click();
-        setRenderCount(i + 1);
-        await new Promise((r) => setTimeout(r, 200));
-      }
+      const pdfBytes = await renderIDCardsPdf(students, setRenderCount);
+      const blob = new Blob([new Uint8Array(pdfBytes)], {
+        type: "application/pdf",
+      });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
       await markLoadedStudentsPrinted();
-      toast.success("All cards downloaded!");
+      toast.success("PDF opened", "Use the browser print button to print the PDF.");
     } finally {
       setGenerating(false);
     }
@@ -264,15 +224,15 @@ function PrintPageContent() {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={handleDownloadAll}
+              onClick={handleOpenPDF}
               disabled={
                 students.length === 0 || generating || exportingPdf
               }
               className="px-4 py-2 text-sm font-bold rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
             >
               {generating
-                ? "⏳ Downloading..."
-                : "⬇️ Download All PNG"}
+                ? "⏳ Opening PDF..."
+                : "Open PDF to Print"}
             </button>
 
             <button
@@ -288,14 +248,14 @@ function PrintPageContent() {
             </button>
 
             <button
-              onClick={handlePrint}
+              onClick={handleOpenPDF}
               className="px-5 py-2 text-sm font-bold rounded-xl text-white"
               style={{
                 background:
                   "linear-gradient(135deg, #2d6a2d, #4a9e4a)",
               }}
             >
-              🖨️ Print
+              🖨️ Print PDF
             </button>
           </div>
         </div>

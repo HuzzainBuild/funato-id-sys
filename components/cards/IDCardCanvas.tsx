@@ -3,23 +3,27 @@
 import { useEffect, useRef, useState } from "react";
 import type { Student } from "@/types";
 import { getIDCardTemplateSrc } from "@/lib/cardTemplates";
+import type { PDFPage } from "pdf-lib";
 
 export const CARD_W = 1017;
 export const CARD_H = 638;
 const EXPORT_SCALE = 2;
 const PDF_JPEG_QUALITY = 0.86;
+const MM_TO_PT = 72 / 25.4;
+const PDF_TEMPLATE_BLEED_PT = 2;
+const LEXEND_EXTRA_BOLD_FONT = "/assets/fonts/Lexend-ExtraBold.ttf";
 
 // ─── Exact positions (px at native 1017×638) ──────────────────────
 
 const P = {
-  surname: { left: 60, top: 285 },
-  otherName: { left: 60, top: 375 },
-  matric: { left: 230, top: 437 },
-  sex: { left: 450, top: 437 },
-  dept: { left: 60, top: 515 },
-  blood: { left: 270, top: 569 },
-  geno: { left: 545, top: 569 },
-  qr: { left: 480, top: 250, size: 170 },
+  surname: { left: 55, top: 285 },
+  otherName: { left: 55, top: 375 },
+  matric: { left: 230, top: 440 },
+  sex: { left: 440, top: 440 },
+  dept: { left: 55, top: 515 },
+  blood: { left: 270, top: 574 },
+  geno: { left: 545, top: 574 },
+  qr: { left: 480, top: 260, size: 160 },
   photo: { left: 690, top: 285, w: 280, h: 300 },
 };
 
@@ -32,7 +36,7 @@ const F = {
 };
 
 const VCOL = "#0d1a0d"; // value text colour
-const TEXT_HALO = "0 1px 1px rgba(255,255,255,0.72)";
+const TEXT_HALO = "none";
 const TEXT_W = {
   surname: 900,
   otherName: 900,
@@ -82,14 +86,7 @@ export default function IDCardCanvas({
       });
       setQrUrl(url);
       setReady(true);
-      if (onRendered && renderForExport) {
-        try {
-          const cardUrl = await renderIDCard(student);
-          onRendered(cardUrl);
-        } catch {
-          onRendered(url);
-        }
-      }
+      if (onRendered && renderForExport) onRendered(url);
     })();
   }, [student, onRendered, renderForExport]);
 
@@ -599,6 +596,267 @@ export async function renderIDCard(
 }
 
 // ── Utils ──────────────────────────────────────────────────────────
+export async function renderIDCardsPdf(
+  students: Student[],
+  onProgress?: (count: number) => void,
+): Promise<Uint8Array> {
+  const { PDFDocument, rgb } = await import("pdf-lib");
+  const fontkit = (await import("@pdf-lib/fontkit")).default;
+  const QR = (await import("qrcode")).default;
+
+  const pdfDoc = await PDFDocument.create();
+  pdfDoc.registerFontkit(fontkit);
+  const fontResponse = await fetch(LEXEND_EXTRA_BOLD_FONT);
+  if (!fontResponse.ok) {
+    throw new Error(
+      `Lexend font not found: ${LEXEND_EXTRA_BOLD_FONT}`,
+    );
+  }
+  const textFont = await pdfDoc.embedFont(
+    new Uint8Array(await fontResponse.arrayBuffer()),
+  );
+  const pageWidth = 85.6 * MM_TO_PT;
+  const pageHeight = 54 * MM_TO_PT;
+  const xScale = pageWidth / CARD_W;
+  const yScale = pageHeight / CARD_H;
+  const px = (value: number) => value * xScale;
+  const py = (value: number) => value * yScale;
+  const textColor = rgb(0.051, 0.102, 0.051);
+
+  const fitPdfFontSize = (
+    text: string,
+    baseSizePx: number,
+    maxWidthPx: number,
+    minSizePx = 8,
+  ) => {
+    for (let size = baseSizePx; size >= minSizePx; size -= 0.5) {
+      if (
+        textFont.widthOfTextAtSize(text, py(size)) <= px(maxWidthPx)
+      ) {
+        return py(size);
+      }
+    }
+    return py(minSizePx);
+  };
+
+  const drawPdfText = (
+    page: PDFPage,
+    text: string | undefined,
+    leftPx: number,
+    topPx: number,
+    baseSizePx: number,
+    maxWidthPx: number,
+    minSizePx = 8,
+  ) => {
+    const value = (text || "").toUpperCase();
+    if (!value) return;
+
+    const size = fitPdfFontSize(
+      value,
+      baseSizePx,
+      maxWidthPx,
+      minSizePx,
+    );
+    const x = px(leftPx);
+    const y = pageHeight - py(topPx) - size;
+
+    page.drawText(value, {
+      x,
+      y,
+      size,
+      font: textFont,
+      color: textColor,
+    });
+  };
+
+  for (let i = 0; i < students.length; i++) {
+    const student = students[i];
+    const page = pdfDoc.addPage([pageWidth, pageHeight]);
+    const templateSrc = getIDCardTemplateSrc(student);
+    const response = await fetch(templateSrc);
+    if (!response.ok) {
+      throw new Error(`Template not found: ${templateSrc}`);
+    }
+
+    const templateBytes = new Uint8Array(
+      await response.arrayBuffer(),
+    );
+    const [templatePage] = await pdfDoc.embedPdf(templateBytes, [0]);
+    const templateSize = templatePage.scale(1);
+    const scale = Math.max(
+      pageWidth / templateSize.width,
+      pageHeight / templateSize.height,
+    );
+    const width = templateSize.width * scale;
+    const height = templateSize.height * scale;
+
+    page.drawPage(templatePage, {
+      x: (pageWidth - width) / 2 - PDF_TEMPLATE_BLEED_PT,
+      y: (pageHeight - height) / 2 - PDF_TEMPLATE_BLEED_PT,
+      width: width + PDF_TEMPLATE_BLEED_PT * 2,
+      height: height + PDF_TEMPLATE_BLEED_PT * 2,
+    });
+
+    drawPdfText(
+      page,
+      student.surname,
+      P.surname.left,
+      P.surname.top,
+      F.surname,
+      TEXT_W.surname,
+      10,
+    );
+    drawPdfText(
+      page,
+      student.otherNames,
+      P.otherName.left,
+      P.otherName.top,
+      F.otherName,
+      TEXT_W.otherName,
+      9,
+    );
+    drawPdfText(
+      page,
+      student.matricNumber,
+      P.matric.left,
+      P.matric.top,
+      F.inline,
+      TEXT_W.matric,
+      9,
+    );
+    drawPdfText(
+      page,
+      student.sex,
+      P.sex.left,
+      P.sex.top,
+      F.inline,
+      TEXT_W.sex,
+      9,
+    );
+    drawPdfText(
+      page,
+      student.department,
+      P.dept.left,
+      P.dept.top,
+      F.dept,
+      TEXT_W.dept,
+      7,
+    );
+    drawPdfText(
+      page,
+      student.bloodGroup,
+      P.blood.left,
+      P.blood.top,
+      F.inline,
+      TEXT_W.blood,
+      9,
+    );
+    drawPdfText(
+      page,
+      student.genotype,
+      P.geno.left,
+      P.geno.top,
+      F.inline,
+      TEXT_W.geno,
+      9,
+    );
+
+    const qrData = JSON.stringify({
+      inst: "FUNATO",
+      sur: student.surname,
+      oth: student.otherNames,
+      mat: student.matricNumber,
+      dep: student.department,
+      sex: student.sex,
+      sec: student.securityString,
+    });
+    const qrUrl = await QR.toDataURL(qrData, {
+      errorCorrectionLevel: "H",
+      margin: 1,
+      width: P.qr.size * 4,
+      color: { dark: "#000000", light: "#ffffff" },
+    });
+    const qrImage = await pdfDoc.embedPng(dataUrlToBytes(qrUrl));
+    page.drawImage(qrImage, {
+      x: px(P.qr.left),
+      y: pageHeight - py(P.qr.top + P.qr.size),
+      width: px(P.qr.size),
+      height: py(P.qr.size),
+    });
+
+    const photoSrc = student.passportUrl || student.passportData;
+    if (photoSrc) {
+      try {
+        const photoDataUrl = await imageToJpegDataUrl(
+          photoSrc,
+          P.photo.w * 4,
+          P.photo.h * 4,
+        );
+        const photo = await pdfDoc.embedJpg(
+          dataUrlToBytes(photoDataUrl),
+        );
+        page.drawImage(photo, {
+          x: px(P.photo.left),
+          y: pageHeight - py(P.photo.top + P.photo.h),
+          width: px(P.photo.w),
+          height: py(P.photo.h),
+        });
+      } catch {
+        /* skip photo on error */
+      }
+    }
+
+    onProgress?.(i + 1);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
+  return pdfDoc.save();
+}
+
+function dataUrlToBytes(dataUrl: string): Uint8Array {
+  const base64 = dataUrl.split(",")[1] || "";
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+async function imageToJpegDataUrl(
+  src: string,
+  width: number,
+  height: number,
+): Promise<string> {
+  const img = await loadImg(src);
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d")!;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, width, height);
+
+  const sourceRatio = img.width / img.height;
+  const targetRatio = width / height;
+  let sx = 0;
+  let sy = 0;
+  let sw = img.width;
+  let sh = img.height;
+
+  if (sourceRatio > targetRatio) {
+    sw = img.height * targetRatio;
+    sx = (img.width - sw) / 2;
+  } else {
+    sh = img.width / targetRatio;
+    sy = Math.max(0, (img.height - sh) / 2);
+  }
+
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, width, height);
+  return canvas.toDataURL("image/jpeg", PDF_JPEG_QUALITY);
+}
+
 function clip(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -648,9 +906,6 @@ function drawCleanText(
   renderScale: number,
 ) {
   ctx.save();
-  ctx.lineWidth = Math.max(1, 1.35 * renderScale);
-  ctx.strokeStyle = "rgba(255,255,255,0.55)";
-  ctx.strokeText(text, x, y);
   ctx.fillStyle = VCOL;
   ctx.fillText(text, x, y);
   ctx.restore();

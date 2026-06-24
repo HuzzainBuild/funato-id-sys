@@ -109,16 +109,21 @@ function CardsPageContent() {
   const downloadCard = async (student: Student) => {
     setGenerating(true);
     try {
-      const { renderIDCard } =
+      const { renderIDCardsPdf } =
         await import("@/components/cards/IDCardCanvas");
-      const dataUrl = await renderIDCard(student);
+      const pdfBytes = await renderIDCardsPdf([student]);
+      const blob = new Blob([new Uint8Array(pdfBytes)], {
+        type: "application/pdf",
+      });
+      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = dataUrl;
-      a.download = `ID_Card_${student.matricNumber}.png`;
+      a.href = url;
+      a.download = `ID_Card_${student.matricNumber}.pdf`;
       a.click();
+      URL.revokeObjectURL(url);
       toast.success(
         "Card downloaded!",
-        `${student.surname}'s ID card saved as PNG`,
+        `${student.surname}'s ID card saved as PDF`,
       );
     } catch (err) {
       toast.error("Download failed", (err as Error).message);
@@ -413,7 +418,7 @@ function CardsPageContent() {
                     disabled={generating}
                     className="py-2.5 rounded-xl text-sm font-bold border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-60"
                   >
-                    {generating ? "⏳" : "⬇️"} PNG
+                    {generating ? "⏳" : "⬇️"} PDF
                   </button>
                   <button
                     onClick={() => handlePrintSingle(selectedStudent)}
@@ -465,7 +470,7 @@ function CardsPageContent() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Output Format</span>
-                  <span className="font-semibold">PNG / PDF</span>
+                  <span className="font-semibold">PDF</span>
                 </div>
               </div>
             </div>
@@ -599,7 +604,7 @@ function StudentCardItem({
             disabled={generating}
             className="flex-1 py-2 rounded-xl text-xs font-bold border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
-            ⬇️ PNG
+            ⬇️ PDF
           </button>
           <button
             onClick={onPrint}
