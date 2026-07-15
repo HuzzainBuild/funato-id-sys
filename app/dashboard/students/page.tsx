@@ -35,7 +35,7 @@ export default function StudentsPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const limit = 50;
+  const limit = 100;
 
   const years = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i);
 
