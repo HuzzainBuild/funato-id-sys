@@ -1,15 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
-import mongoose from 'mongoose';
-import { connectDB } from '@/lib/db';
-import { isAuthenticated } from '@/lib/auth';
-import Student from '@/models/Student';
-import UploadRecord from '@/models/UploadRecord';
+import { NextRequest, NextResponse } from "next/server";
+import mongoose from "mongoose";
+import { connectDB } from "@/lib/db";
+import { isAuthenticated } from "@/lib/auth";
+import { deletePassports } from "@/lib/cloudinary";
+import Student from "@/models/Student";
+import UploadRecord from "@/models/UploadRecord";
 
 export async function GET(req: NextRequest) {
   try {
     const user = isAuthenticated(req);
     if (!user) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { success: false, message: "Unauthorized" },
+        { status: 401 },
+      );
     }
 
     await connectDB();
@@ -24,11 +28,11 @@ export async function GET(req: NextRequest) {
       { $match: { uploadRecordId: { $in: uploadIds } } },
       {
         $group: {
-          _id: '$uploadRecordId',
+          _id: "$uploadRecordId",
           studentCount: { $sum: 1 },
           printedCount: {
             $sum: {
-              $cond: [{ $ifNull: ['$printedAt', false] }, 1, 0],
+              $cond: [{ $ifNull: ["$printedAt", false] }, 1, 0],
             },
           },
         },
@@ -61,8 +65,11 @@ export async function GET(req: NextRequest) {
       }),
     });
   } catch (error) {
-    console.error('Get uploads error:', error);
-    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
+    console.error("Get uploads error:", error);
+    return NextResponse.json(
+      { success: false, message: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -70,17 +77,23 @@ export async function PATCH(req: NextRequest) {
   try {
     const user = isAuthenticated(req);
     if (!user) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { success: false, message: "Unauthorized" },
+        { status: 401 },
+      );
     }
 
     const { uploadId, action } = await req.json();
     if (!uploadId || !mongoose.Types.ObjectId.isValid(uploadId)) {
-      return NextResponse.json({ success: false, message: 'Valid upload ID is required' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: "Valid upload ID is required" },
+        { status: 400 },
+      );
     }
 
     await connectDB();
 
-    if (action === 'markPrinted') {
+    if (action === "markPrinted") {
       const result = await Student.updateMany(
         { uploadRecordId: new mongoose.Types.ObjectId(uploadId) },
         {
@@ -89,25 +102,37 @@ export async function PATCH(req: NextRequest) {
         },
       );
 
-      return NextResponse.json({ success: true, updated: result.modifiedCount });
+      return NextResponse.json({
+        success: true,
+        updated: result.modifiedCount,
+      });
     }
 
-    if (action === 'markUnprinted') {
+    if (action === "markUnprinted") {
       const result = await Student.updateMany(
         { uploadRecordId: new mongoose.Types.ObjectId(uploadId) },
         {
-          $unset: { printedAt: '' },
+          $unset: { printedAt: "" },
           $set: { printCount: 0 },
         },
       );
 
-      return NextResponse.json({ success: true, updated: result.modifiedCount });
+      return NextResponse.json({
+        success: true,
+        updated: result.modifiedCount,
+      });
     }
 
-    return NextResponse.json({ success: false, message: 'Invalid action' }, { status: 400 });
+    return NextResponse.json(
+      { success: false, message: "Invalid action" },
+      { status: 400 },
+    );
   } catch (error) {
-    console.error('Update upload print status error:', error);
-    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
+    console.error("Update upload print status error:", error);
+    return NextResponse.json(
+      { success: false, message: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -115,19 +140,33 @@ export async function DELETE(req: NextRequest) {
   try {
     const user = isAuthenticated(req);
     if (!user) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { success: false, message: "Unauthorized" },
+        { status: 401 },
+      );
     }
 
     const { uploadId } = await req.json();
     if (!uploadId || !mongoose.Types.ObjectId.isValid(uploadId)) {
-      return NextResponse.json({ success: false, message: 'Valid upload ID is required' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: "Valid upload ID is required" },
+        { status: 400 },
+      );
     }
 
     await connectDB();
 
     const objectId = new mongoose.Types.ObjectId(uploadId);
-    const studentsResult = await Student.deleteMany({ uploadRecordId: objectId });
-    const uploadResult = await UploadRecord.deleteOne({ _id: objectId });
+    const doomed = await Student.find({ uploadRecordId: objectId })
+      .select("passportUrl")
+      .lean();
+    const studentsResult = await Student.deleteMany({
+      uploadRecordId: objectId,
+    });
+    await deletePassports(doomed.map((s) => s.passportUrl));
+    const uploadResult = await UploadRecord.deleteOne({
+      _id: objectId,
+    });
 
     return NextResponse.json({
       success: true,
@@ -135,7 +174,10 @@ export async function DELETE(req: NextRequest) {
       deletedUploads: uploadResult.deletedCount,
     });
   } catch (error) {
-    console.error('Delete upload batch error:', error);
-    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
+    console.error("Delete upload batch error:", error);
+    return NextResponse.json(
+      { success: false, message: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

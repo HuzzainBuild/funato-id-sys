@@ -1,33 +1,54 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { connectDB } from '@/lib/db';
-import Student from '@/models/Student';
-import { isAuthenticated } from '@/lib/auth';
+import { NextRequest, NextResponse } from "next/server";
+import { connectDB } from "@/lib/db";
+import Student from "@/models/Student";
+import { isAuthenticated } from "@/lib/auth";
+import { deletePassports } from "@/lib/cloudinary";
 
 export async function DELETE(req: NextRequest) {
   const user = isAuthenticated(req);
-  if (!user) return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+  if (!user)
+    return NextResponse.json(
+      { success: false, message: "Unauthorized" },
+      { status: 401 },
+    );
   await connectDB();
   const { ids } = await req.json();
   if (!Array.isArray(ids) || !ids.length)
-    return NextResponse.json({ success: false, message: 'No IDs provided' }, { status: 400 });
+    return NextResponse.json(
+      { success: false, message: "No IDs provided" },
+      { status: 400 },
+    );
+  const doomed = await Student.find({ _id: { $in: ids } })
+    .select("passportUrl")
+    .lean();
   const result = await Student.deleteMany({ _id: { $in: ids } });
-  return NextResponse.json({ success: true, deleted: result.deletedCount });
+  await deletePassports(doomed.map((s) => s.passportUrl));
+  return NextResponse.json({
+    success: true,
+    deleted: result.deletedCount,
+  });
 }
 
 export async function PATCH(req: NextRequest) {
   const user = isAuthenticated(req);
   if (!user) {
-    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json(
+      { success: false, message: "Unauthorized" },
+      { status: 401 },
+    );
   }
 
   await connectDB();
   const { ids, action } = await req.json();
 
   if (!Array.isArray(ids) || !ids.length) {
-    return NextResponse.json({ success: false, message: 'No IDs provided' }, { status: 400 });
+    return NextResponse.json(
+      { success: false, message: "No IDs provided" },
+      { status: 400 },
+    );
   }
 
-  if (action === 'markPrinted') {
+  if (action === "markPrinted") {
     const result = await Student.updateMany(
       { _id: { $in: ids } },
       {
@@ -42,11 +63,11 @@ export async function PATCH(req: NextRequest) {
     });
   }
 
-  if (action === 'markUnprinted') {
+  if (action === "markUnprinted") {
     const result = await Student.updateMany(
       { _id: { $in: ids } },
       {
-        $unset: { printedAt: '' },
+        $unset: { printedAt: "" },
         $set: { printCount: 0 },
       },
     );
@@ -57,5 +78,8 @@ export async function PATCH(req: NextRequest) {
     });
   }
 
-  return NextResponse.json({ success: false, message: 'Invalid action' }, { status: 400 });
+  return NextResponse.json(
+    { success: false, message: "Invalid action" },
+    { status: 400 },
+  );
 }
