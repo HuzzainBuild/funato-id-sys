@@ -1,10 +1,11 @@
-// lib/db.ts
-import mongoose from 'mongoose';
-
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/funato-id-system';
+import mongoose from "mongoose";
+ 
+const MONGODB_URI = process.env.MONGODB_URI!;
 
 if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable');
+  throw new Error(
+    "Please define the MONGODB_URI environment variable",
+  );
 }
 
 interface MongooseCache {
@@ -16,7 +17,10 @@ declare global {
   var mongooseCache: MongooseCache | undefined;
 }
 
-let cached: MongooseCache = global.mongooseCache || { conn: null, promise: null };
+let cached: MongooseCache = global.mongooseCache || {
+  conn: null,
+  promise: null,
+};
 
 if (!global.mongooseCache) {
   global.mongooseCache = cached;
@@ -35,10 +39,12 @@ export async function connectDB(): Promise<typeof mongoose> {
       socketTimeoutMS: 45000,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongooseInstance) => {
-      console.log('✅ MongoDB connected successfully');
-      return mongooseInstance;
-    });
+    cached.promise = mongoose
+      .connect(MONGODB_URI, opts)
+      .then((mongooseInstance) => {
+        console.log("✅ MongoDB connected successfully");
+        return mongooseInstance;
+      });
   }
 
   try {

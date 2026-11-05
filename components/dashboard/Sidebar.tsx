@@ -63,7 +63,7 @@ export default function Sidebar({
       <div className="p-6 border-b border-white/10">
         <div className="flex items-center gap-3 mb-4">
           <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center font-extrabold text-xl text-white flex-shrink-0"
+            className="w-12 h-12 rounded-xl flex items-center justify-center font-extrabold text-xl text-white shrink-0"
             style={{
               background: "rgba(255,255,255,0.15)",
               border: "2px solid rgba(255,255,255,0.25)",
@@ -125,7 +125,7 @@ export default function Sidebar({
       <div className="p-4 border-t border-white/10">
         <div className="flex items-center gap-3 mb-3 px-2">
           <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm text-white flex-shrink-0"
+            className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm text-white shrink-0"
             style={{ background: "rgba(255,255,255,0.2)" }}
           >
             {(adminName || "A")[0].toUpperCase()}

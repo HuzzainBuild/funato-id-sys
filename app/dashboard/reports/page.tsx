@@ -8,7 +8,7 @@ import { uploadsApi } from '@/lib/apiClient';
 import { ToastContainer, useToast } from '@/hooks/useToast';
 import type { ReportSummary, BreakdownRow } from '@/lib/reportData';
 
-type ExportType = 'report' | 'printed' | 'unprinted' | 'cards' | 'incomplete';
+type ExportType = 'report' | 'all' | 'printed' | 'unprinted' | 'cards' | 'incomplete';
 
 interface Filters {
   college: string;
@@ -164,6 +164,8 @@ export default function ReportsPage() {
   const [uploads, setUploads] = useState<UploadRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string>('');
+  const [scope, setScope] = useState<'all' | 'printed' | 'unprinted'>('all');
+  const [format, setFormat] = useState<'xlsx' | 'csv'>('xlsx');
 
   const years = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i);
   const set = (k: keyof Filters) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -363,6 +365,53 @@ export default function ReportsPage() {
             </Card>
           </div>
 
+          {/* Student list export */}
+          <div className="mb-6 no-print">
+            <Card title="Export Student Lists">
+              <p className="text-sm text-gray-500 mb-4">
+                Download student records straight from here
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                {([
+                  ['all', 'All uploaded students', t.total],
+                  ['printed', 'Printed students', t.printed],
+                  ['unprinted', 'Not yet printed', t.unprinted],
+                ] as const).map(([key, label, count]) => (
+                  <button
+                    key={key}
+                    onClick={() => setScope(key)}
+                    className={`text-left p-4 rounded-xl border-2 transition-all ${
+                      scope === key ? 'border-green-600 bg-green-50' : 'border-gray-200 hover:border-green-300'
+                    }`}
+                  >
+                    <p className="font-bold text-sm text-gray-900">{label}</p>
+                    <p className="text-2xl font-extrabold mt-1" style={{ color: '#2d6a2d' }}>
+                      {count.toLocaleString()}
+                    </p>
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <select
+                  className="form-input max-w-48"
+                  value={format}
+                  onChange={(e) => setFormat(e.target.value as 'xlsx' | 'csv')}
+                >
+                  <option value="xlsx">Excel (.xlsx)</option>
+                  <option value="csv">CSV (.csv)</option>
+                </select>
+                <button
+                  onClick={() => download('export-list', scope, {}, { format })}
+                  disabled={!!busy}
+                  className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                  style={{ background: GREEN }}
+                >
+                  {busy === 'export-list' ? '⏳ Preparing…' : '⬇ Download list'}
+                </button>
+              </div>
+            </Card>
+          </div>
+
           <div className="space-y-6">
             <Card title="Progress by College">
               <BreakdownTable
@@ -427,6 +476,9 @@ export default function ReportsPage() {
                           </td>
                           <td className="py-2.5 pl-2 text-right no-print">
                             <div className="flex gap-2 justify-end">
+                              <MiniButton disabled={!!busy} onClick={() => download(`bat-all-${b.uploadId}`, 'all', { uploadId: b.uploadId }, { batchName: b.fileName })}>
+                                ⬇ All
+                              </MiniButton>
                               <MiniButton disabled={!!busy || !b.unprinted} onClick={() => download(`bat-${b.uploadId}`, 'unprinted', { uploadId: b.uploadId }, { batchName: b.fileName })}>
                                 ⬇ Unprinted
                               </MiniButton>

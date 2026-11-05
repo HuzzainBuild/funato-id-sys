@@ -323,3 +323,13 @@ export function buildSummaryWorkbook(summary: ReportSummary, filterLabel: string
   );
   return toBuffer(wb);
 }
+
+/** CSV version of a student list (UTF-8 with BOM so Excel shows names correctly). */
+export function buildStudentListCsv(
+  rows: StudentExportRow[],
+  batchNames: Map<string, string>,
+): Buffer {
+  const ws = makeSheet(STUDENT_HEADERS, studentRows(rows, batchNames));
+  const csv = XLSX.utils.sheet_to_csv(ws);
+  return Buffer.from('\uFEFF' + csv, 'utf8');
+}
